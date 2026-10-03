@@ -47,7 +47,8 @@ CB = "https://www2.census.gov/geo/tiger/GENZ2023/shp/{name}.zip"
 ACS = "https://api.census.gov/data/2023/acs/acs5"
 NRI = "https://services.arcgis.com/XG15cJAlne2vxtgt/arcgis/rest/services/National_Risk_Index_Census_Tracts/FeatureServer/0/query"
 AQUEDUCT_ZIP = "https://files.wri.org/aqueduct/aqueduct-4-0-water-risk-data.zip"
-OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter"]
+OVERPASS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter",
+            "https://overpass.private.coffee/api/interpreter", "https://maps.mail.ru/osm/tools/overpass/api/interpreter"]
 UA = {"User-Agent": "SiteSense-WolfHacks/1.0 (NC State hackathon)"}
 EARTH_R = 6371.0088
 
@@ -140,8 +141,10 @@ def _acs(get: list[str], geo: dict) -> pd.DataFrame:
     if os.getenv("CENSUS_API_KEY"):
         params["key"] = os.getenv("CENSUS_API_KEY")
     r = requests.get(ACS, params=params, timeout=120, headers=UA)
-    r.raise_for_status()
-    rows = r.json()
+    try:
+        rows = r.json()
+    except ValueError:
+        raise RuntimeError(f"Census API HTTP {r.status_code}: {r.text[:300]!r}") from None
     df = pd.DataFrame(rows[1:], columns=rows[0])
     for c in get:
         df[c] = pd.to_numeric(df[c], errors="coerce")
@@ -149,9 +152,21 @@ def _acs(get: list[str], geo: dict) -> pd.DataFrame:
     return df
 
 
+def _acs_tracts(get: list[str]) -> pd.DataFrame:
+    try:
+        return _acs(get, {"for": "tract:*", "in": f"state:{NC_FIPS}"})
+    except Exception as e:
+        log(f"  state-wide tract query failed ({e}); trying county by county")
+    parts = []
+    for cf in sorted(_hexes().county_fips.dropna().unique()):
+        parts.append(_acs(get, {"for": "tract:*", "in": f"state:{NC_FIPS} county:{cf[2:]}"}))
+        time.sleep(0.2)
+    return pd.concat(parts, ignore_index=True)
+
+
 def step_census():
     log("census ACS 2023 5-year")
-    t = _acs(["B01003_001E", "B11001_001E", "B19013_001E"], {"for": "tract:*", "in": f"state:{NC_FIPS}"})
+    t = _acs_tracts(["B01003_001E", "B11001_001E", "B19013_001E"])
     t["GEOID"] = t.state + t.county + t.tract
     c = _acs(["B11001_001E", "B23025_003E", "B23025_005E"], {"for": "county:*", "in": f"state:{NC_FIPS}"})
     c["county_fips"] = c.state + c.county
@@ -286,15 +301,19 @@ def step_landcover():
 # ------------------------------------------------------------------ OSM ---
 
 def _overpass(q: str) -> list[dict]:
-    for url in OVERPASS:
-        try:
-            r = requests.post(url, data={"data": q}, timeout=1000, headers=UA)
-            r.raise_for_status()
-            return r.json()["elements"]
-        except Exception as e:
-            log(f"  overpass {url} failed: {e}")
-            time.sleep(5)
-    raise RuntimeError("all Overpass endpoints failed")
+    for attempt in range(3):
+        for url in OVERPASS:
+            try:
+                r = requests.post(url, data={"data": q}, timeout=1000, headers=UA)
+                r.raise_for_status()
+                return r.json()["elements"]
+            except Exception as e:
+                log(f"  overpass {url.split('/')[2]} failed: {str(e)[:120]}")
+                time.sleep(3)
+        wait = 30 * (attempt + 1)
+        log(f"  all mirrors busy; retrying in {wait}s")
+        time.sleep(wait)
+    raise RuntimeError("all Overpass endpoints failed 3 times")
 
 
 def _kv(tag: str | None) -> float:
@@ -328,6 +347,9 @@ def step_osm():
         "datacenters": f'[out:json][timeout:900];(nwr["telecom"="data_center"]{bb};nwr["building"="data_center"]{bb};);out center tags;',
     }
     for name, q in pts_q.items():
+        if (POINTS / f"{name}.parquet").exists():
+            log(f"  {name}: cached")
+            continue
         els = _overpass(q)
         rows = []
         for el in els:
@@ -342,22 +364,33 @@ def step_osm():
         log(f"  {name}: {len(df):,}")
         time.sleep(2)
 
-    els = _overpass(f'[out:json][timeout:900];way["power"="line"]{bb};out geom tags;')
-    rows = []
-    for el in els:
-        kv = _kv(el.get("tags", {}).get("voltage"))
-        g = el.get("geometry") or []
-        for a, b in zip(g, g[1:]):
-            d = _hav(a["lat"], a["lon"], b["lat"], b["lon"])
-            k = max(1, int(math.ceil(d / 0.25)))          # a vertex every ~250 m
-            for i in range(k):
-                f = i / k
-                rows.append((a["lat"] + f * (b["lat"] - a["lat"]), a["lon"] + f * (b["lon"] - a["lon"]), kv))
-        if g:
-            rows.append((g[-1]["lat"], g[-1]["lon"], kv))
-    lines = pd.DataFrame(rows, columns=["lat", "lon", "kv"])
-    lines.to_parquet(POINTS / "lines.parquet")
-    log(f"  line vertices: {len(lines):,} from {len(els):,} lines")
+    rows, n_lines = [], 0
+    lat_mid, lon_mid = (s + n) / 2, (w + e) / 2
+    tiles = [(s, w, lat_mid, lon_mid), (s, lon_mid, lat_mid, e), (lat_mid, w, n, lon_mid), (lat_mid, lon_mid, n, e)]
+    if (POINTS / "lines.parquet").exists():
+        log("  lines: cached")
+        tiles = []
+    for ts, tw, tn, te in tiles:
+        els = _overpass(f'[out:json][timeout:900];way["power"="line"]({ts},{tw},{tn},{te});out geom tags;')
+        n_lines += len(els)
+        log(f"  lines tile ({ts:.1f},{tw:.1f}): {len(els):,} ways")
+        for el in els:
+            kv = _kv(el.get("tags", {}).get("voltage"))
+            g = el.get("geometry") or []
+            for a, b in zip(g, g[1:]):
+                d = _hav(a["lat"], a["lon"], b["lat"], b["lon"])
+                k = max(1, int(math.ceil(d / 0.25)))          # a vertex every ~250 m
+                for i in range(k):
+                    f = i / k
+                    rows.append((a["lat"] + f * (b["lat"] - a["lat"]), a["lon"] + f * (b["lon"] - a["lon"]), kv))
+            if g:
+                rows.append((g[-1]["lat"], g[-1]["lon"], kv))
+        time.sleep(2)
+    if tiles:
+        lines = pd.DataFrame(rows, columns=["lat", "lon", "kv"]).drop_duplicates()
+        lines.to_parquet(POINTS / "lines.parquet")
+        log(f"  line vertices: {len(lines):,} from {n_lines:,} ways")
+    lines = pd.read_parquet(POINTS / "lines.parquet")
 
     hx = _hexes()
     subs = pd.read_parquet(POINTS / "substations.parquet")
@@ -449,8 +482,11 @@ def step_score():
             "columns": list(g.columns), "features": [f.stem[5:] for f in sorted(INTERIM.glob("feat_*.parquet"))]}
     (GRID / "meta.json").write_text(json.dumps(meta, indent=2))
     log(f"  wrote {GRID / 'nc_h3r7.parquet'}: {len(g):,} rows x {len(g.columns)} cols")
-    print(g[["suitability", "burden", "pop", "dist_sub_km", "bws_score", "nri_overall", "svi_pct"]
-            if "nri_overall" in g and "bws_score" in g else ["suitability", "burden"]].describe().round(2).to_string())
+    show = [c for c in ["suitability", "burden", "pop", "dist_sub_km", "dist_line_km", "bws_score", "nri_overall", "svi_pct", "lc_forest"] if c in g]
+    print(g[show].describe().round(2).to_string())
+    missing = [c for c in ["pop", "dist_sub_km", "bws_score", "nri_overall", "lc_forest"] if c not in g or g[c].isna().all()]
+    if missing:
+        log(f"  WARNING: no data yet for {missing} — scores use neutral values there; re-run the failed step, then --only score,layers")
 
 
 # --------------------------------------------------------------- layers ---
