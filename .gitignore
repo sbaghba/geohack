@@ -1,0 +1,23 @@
+# secrets
+.env
+**/.env
+
+# python
+__pycache__/
+.pytest_cache/
+.venv/
+venv/
+
+# data (large; lives on the GPU server, copied to deploy as needed)
+backend/data/raw/
+*.h5
+*.nc
+*.tif
+*.part
+
+# misc
+.DS_Store
+~$*.docx
+
+# exported plan docs
+*.docx

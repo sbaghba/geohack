@@ -1,0 +1,212 @@
+{
+  "contract_version": "1.0.0",
+  "mock": true,
+  "generated_at": "2026-10-03T17:11:19+00:00",
+  "request": {
+    "lat": 35.655,
+    "lon": -78.462,
+    "mw": 100.0,
+    "cooling": "evaporative",
+    "power": "grid",
+    "workload": "ai"
+  },
+  "site": {
+    "lat": 35.655,
+    "lon": -78.462,
+    "hex_id": "872ad6820ffffff",
+    "label": "near Clayton, NC (sample)",
+    "county": "Johnston",
+    "state": "NC",
+    "tier": 1
+  },
+  "scores": {
+    "suitability": 72.0,
+    "burden": 58.0,
+    "quadrant": "tradeoff",
+    "pressure": 81.0,
+    "pressure_drivers": [
+      {
+        "key": "near_230kv_line",
+        "label": "230 kV line 1.8 km away",
+        "direction": "+"
+      },
+      {
+        "key": "low_flood_share",
+        "label": "Little floodplain nearby",
+        "direction": "+"
+      },
+      {
+        "key": "high_water_stress",
+        "label": "Medium-high water stress",
+        "direction": "-"
+      }
+    ]
+  },
+  "energy": {
+    "pue": 1.2,
+    "annual_mwh": 840960.0,
+    "peak_grid_mw": 120.0,
+    "homes_equiv": 80091.0,
+    "county_share_pct": 38.0,
+    "grid_region": "SRVC",
+    "price_usd_per_mwh": 75.0,
+    "annual_cost_usd": 63072000.0,
+    "nearest_substation_km": 3.2,
+    "nearest_substation_kv": 230.0,
+    "nearest_line_km": 1.8,
+    "nearest_line_kv": 230.0
+  },
+  "carbon": {
+    "grid_lb_per_mwh": 650.0,
+    "tons_co2_yr": 247947.0,
+    "cars_equiv": 53902.0
+  },
+  "water": {
+    "wue_l_per_kwh": 1.8,
+    "onsite_m3_yr": 1513728.0,
+    "offsite_m3_yr": 3784320.0,
+    "households_equiv": 3652.0,
+    "aqueduct_stress": 2.6,
+    "aqueduct_label": "Medium-high (20-40%)",
+    "drought_category": "D0"
+  },
+  "economy": {
+    "capex_usd": 1000000000.0,
+    "construction_jobs": 1000.0,
+    "permanent_jobs": 50.0,
+    "county_unemployed": 4800.0,
+    "county_unemployment_pct": 3.4,
+    "property_tax_usd_yr": 3300000.0,
+    "county_levy_share_pct": 2.1
+  },
+  "hazards": {
+    "fema_zone": "X",
+    "in_floodplain": false,
+    "nri": {
+      "overall": 61.0,
+      "hurricane": 78.0,
+      "heat_wave": 55.0,
+      "riverine_flooding": 40.0,
+      "coastal_flooding": null,
+      "tornado": 66.0
+    },
+    "nri_rating": "Relatively Moderate",
+    "subsidence_mm_yr": null
+  },
+  "community": {
+    "pop_1km": 850.0,
+    "pop_3km": 9400.0,
+    "pop_5km": 24100.0,
+    "homes_1km": 310.0,
+    "svi_pct": 47.0,
+    "median_income_usd": 68000.0,
+    "schools_1km": [
+      {
+        "name": "Sample Elementary School",
+        "kind": "school",
+        "lat": 35.661,
+        "lon": -78.46600000000001,
+        "distance_km": 0.7
+      }
+    ],
+    "hospitals_1km": []
+  },
+  "land": {
+    "acres": 75.0,
+    "converted_acres": {
+      "forest": 33.75,
+      "cropland": 26.25,
+      "pasture": 7.5,
+      "wetland": 0.0,
+      "developed": 3.75,
+      "other": 3.75
+    },
+    "flags": []
+  },
+  "mitigations": [
+    {
+      "key": "closed_loop_cooling",
+      "label": "Switch to closed-loop liquid cooling",
+      "deltas": [
+        {
+          "field": "water.onsite_m3_yr",
+          "before": 1513728.0,
+          "after": 80592.0,
+          "pct_change": -94.7
+        },
+        {
+          "field": "energy.annual_mwh",
+          "before": 840960.0,
+          "after": 805920.0,
+          "pct_change": -4.2
+        }
+      ]
+    },
+    {
+      "key": "onsite_solar",
+      "label": "Add on-site solar",
+      "deltas": [
+        {
+          "field": "carbon.tons_co2_yr",
+          "before": 247947.0,
+          "after": 235549.7,
+          "pct_change": -5.0
+        }
+      ]
+    }
+  ],
+  "sources": [
+    {
+      "key": "egrid",
+      "name": "EPA eGRID",
+      "url": "https://www.epa.gov/egrid",
+      "vintage": null
+    },
+    {
+      "key": "aqueduct",
+      "name": "WRI Aqueduct",
+      "url": "https://www.wri.org/aqueduct",
+      "vintage": null
+    },
+    {
+      "key": "nri",
+      "name": "FEMA National Risk Index",
+      "url": "https://hazards.fema.gov/nri/",
+      "vintage": null
+    },
+    {
+      "key": "nfhl",
+      "name": "FEMA National Flood Hazard Layer",
+      "url": "https://www.fema.gov/flood-maps/national-flood-hazard-layer",
+      "vintage": null
+    },
+    {
+      "key": "acs",
+      "name": "US Census ACS",
+      "url": "https://www.census.gov/data/developers.html",
+      "vintage": null
+    },
+    {
+      "key": "qcew",
+      "name": "BLS QCEW",
+      "url": "https://www.bls.gov/cew/",
+      "vintage": null
+    },
+    {
+      "key": "nlcd",
+      "name": "NLCD",
+      "url": "https://www.mrlc.gov",
+      "vintage": null
+    },
+    {
+      "key": "opera",
+      "name": "OPERA DISP-S1",
+      "url": "https://www.earthdata.nasa.gov/data/catalog/asf-opera-l3-disp-s1-v1-1",
+      "vintage": null
+    }
+  ],
+  "missing": [
+    "hazards.subsidence_mm_yr",
+    "hazards.nri.coastal_flooding"
+  ]
+}

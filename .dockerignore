@@ -1,0 +1,6 @@
+**/__pycache__
+**/.pytest_cache
+**/.env
+backend/data/raw
+*.docx
+.git

@@ -1,0 +1,18 @@
+# Render Blueprint: New > Blueprint > pick this repo. Free plan sleeps after ~15 min idle,
+# so open /api/health a minute before judging to wake it.
+services:
+  - type: web
+    name: sitesense-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false          # paste it in the Render dashboard, never commit it
+      - key: GEMINI_MODEL
+        value: gemini-3.8-flash
+      - key: USE_MOCK
+        value: "true"        # flip to "false" once data/grid is in place (M2)
+      - key: ALLOWED_ORIGINS
+        value: http://localhost:5173,http://127.0.0.1:5500
