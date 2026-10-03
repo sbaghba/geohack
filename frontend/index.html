@@ -1,0 +1,142 @@
+<html>
+    <head>
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+        <link rel="stylesheet" href="style.css"/>
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    </head>
+
+    <body>
+        <div id="main-flex">
+            <div id="map"></div>
+            <div id="sidebar">
+                <button onclick="resetMap()">Reset Map</button>
+            </div>
+        </div>
+        <div id="parameter-form" class="invisible">
+            <h1>What type of Data Center?</h1>
+            <div class="colflex">
+                <h2>IT Load</h2>
+                <div class="buttons">
+                    <input type="radio" name="it-load" value="20" id="20"/>
+                    <label for="20">20 MW</label>
+                    <input type="radio" name="it-load" value="50" id="50"/>
+                    <label for="50">50 MW</label>
+                    <input type="radio" name="it-load" value="100" id="100" checked="checked"/>
+                    <label for="100">100 MW</label>
+                    <input type="radio" name="it-load" value="300" id="300"/>
+                    <label for="300">300 MW</label>
+                    <input type="radio" name="it-load" value="1000" id="1000"/>
+                    <label for="1000">1000 MW</label>
+                </div>
+            </div>
+            <div class="colflex">
+                <h2>Cooling</h2>
+                <div class="buttons">
+                    <input type="radio" name="cooling" value="evaporative" id="evaporative" checked="checked"/>
+                    <label for="evaporative">Evaporative</label>
+                    <input type="radio" name="cooling" value="air" id="air"/>
+                    <label for="air">Air (Dry)</label>
+                    <input type="radio" name="cooling" value="closed-loop-liquid" id="cll"/>
+                    <label for="cll">Closed-loop Liquid</label>
+                </div>
+            </div>
+            <div class="colflex">
+                <h2>Power Source</h2>
+                <div class="buttons">
+                    <input type="radio" name="power-source" value="grid" id="g" checked="checked"/>
+                    <label for="g">Grid</label>
+                    <input type="radio" name="power-source" value="grid-solar" id="s"/>
+                    <label for="s">Grid + On-site Solar</label>
+                    <input type="radio" name="power-source" value="gas" id="gas"/>
+                    <label for="gas">On-site Gas Turbines</label>
+                </div>
+            </div>
+            <div class="colflex">
+                <h2>Workload</h2>
+                <div class="buttons">
+                    <input type="radio" name="workload" value="ai-training" id="ai" checked="checked"/>
+                    <label for="ai">AI Training</label>
+                    <input type="radio" name="workload" value="mixed-cloud" id="mix"/>
+                    <label for="mix">Mixed Cloud</label>
+                </div>
+            </div>
+            <button id="submitter" onclick="submitted()">SUBMIT</button>
+        </div>
+
+        <script>
+            var map;
+            var canPin;
+            var markers;
+            var currentLat;
+            var currentLon;
+
+            function init() {
+                currentLat = null;
+                currentLon = null;
+                canPin = true;
+                markers = [];
+                map = L.map('map').setView([35.777714, -78.649809], 10);
+                var satellite = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
+                attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+                })
+                var TopPlusOpen_Color = L.tileLayer('http://sgx.geodatenzentrum.de/wmts_topplus_open/tile/1.0.0/web/default/WEBMERCATOR/{z}/{y}/{x}.png', {
+                    maxZoom: 20,
+                    attribution: 'Map data: &copy; <a href="http://www.govdata.de/dl-de/by-2-0">dl-de/by-2-0</a>'
+                });
+                TopPlusOpen_Color.addTo(map);
+                map.on('click', onMapClick);
+            }
+
+            function onMapClick(e) {
+                if (canPin) {
+                    var latlng = e.latlng.toString()
+                    var formatted = latlng.substring(7, latlng.length-2).split(", ")
+                    currentLat = parseFloat(formatted[0]);
+                    currentLon = parseFloat(formatted[1]);
+                    var m = new L.marker([currentLat, currentLon]);
+                    markers.push(m);
+                    map.addLayer(m);
+                    canPin = false;
+
+                    document.getElementById("map").classList.add("invisible");
+                    document.getElementById("parameter-form").classList.remove("invisible");
+                }
+            }
+
+            async function submitted() {
+                document.getElementById("map").classList.remove("invisible");
+                document.getElementById("parameter-form").classList.add("invisible");
+
+                var itLoad = parseInt(document.querySelector('input[name="it-load"]:checked').value);
+                var cooling = document.querySelector('input[name="cooling"]:checked').value;
+                var powerSource = document.querySelector('input[name="power-source"]:checked').value;
+                var workload = document.querySelector('input[name="workload"]:checked').value;
+
+                var fetched = await fetch('https://sitesense-api.onrender.com/', {
+                    method: "POST",
+                    body: JSON.stringify({
+                        "lat": currentLat,
+                        "lon": currentLon,
+                        "mw": itLoad,
+                        "cooling": cooling,
+                        "power": powerSource,
+                        "workload": workload
+                    })
+                })
+
+                var data = await fetched.json();
+
+                console.log(data);
+            }
+
+            function resetMap() {
+                canPin = true;
+                for (i=0; i<markers.length; i++) {
+                    map.removeLayer(markers[i]);
+                }
+            }
+
+            window.onload = init
+        </script>
+    </body>
+</html>
