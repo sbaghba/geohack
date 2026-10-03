@@ -56,6 +56,12 @@ FIELD_SOURCES_NC = {
 }
 
 
+def _field_sources(row) -> dict:
+    if row.get("pop_src") == "nri":  # ACS fallback: population is Census 2020 via FEMA NRI
+        return {**FIELD_SOURCES_NC, "community": "nri", "energy.county_households": "acs"}
+    return FIELD_SOURCES_NC
+
+
 def _pois(kind: str, name: str, lat: float, lon: float, km: float) -> list[Poi]:
     return [Poi(name=(r.get("name") or f"Unnamed {kind}")[:80], kind=kind, lat=float(r.lat), lon=float(r.lon), distance_km=round(d, 2))
             for d, r in store.within(name, lat, lon, km)[:25]]
@@ -131,8 +137,8 @@ def report(req: AnalyzeRequest) -> Report:
                                                              other=round(acres * ((_f(row.get("lc_other")) or 0) + (_f(row.get("lc_water")) or 0)), 1)),
                   flags=flags),
         mitigations=mitigations(req, grid_lb, price, tax_rate, m),
-        sources=_sources(set(FIELD_SOURCES_NC.values()) | {"model"}),
-        field_sources=FIELD_SOURCES_NC,
+        sources=_sources(set(_field_sources(row).values()) | {"model"}),
+        field_sources=_field_sources(row),
     )
     rep.missing = _missing(rep.model_dump(exclude={"request", "mitigations", "sources", "missing", "field_sources"}))
     return rep
