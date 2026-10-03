@@ -1,5 +1,5 @@
 {
-  "built_at": "2026-10-03T21:29:48+00:00",
+  "built_at": "2026-10-03T22:01:34+00:00",
   "rows": 29352,
   "res": 7,
   "columns": [
@@ -14,6 +14,10 @@
     "pop",
     "households",
     "median_income_usd",
+    "subsidence_mm_yr",
+    "opera_coherence",
+    "nisar_motion_12d_mm",
+    "nisar_coherence",
     "lc_forest",
     "lc_pasture",
     "lc_cropland",
@@ -47,6 +51,7 @@
   "features": [
     "aqueduct",
     "census",
+    "insar",
     "landcover",
     "nri",
     "osm"
