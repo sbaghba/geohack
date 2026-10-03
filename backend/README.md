@@ -155,8 +155,8 @@ python -u scripts/build_grid.py --only score,layers
 git add data/grid data/layers data/overlays && git commit -m "InSAR layers" && git push
 ```
 
-- `subsidence_mm_yr`: OPERA DISP-S1 (Sentinel-1) line-of-sight velocity from 12 pairs 2021-2025, weighted by time span; negative = moving away from the satellite (sinking).
+- `subsidence_mm_yr`: OPERA DISP-S1 (Sentinel-1) local line-of-sight velocity 2021-2025 relative to the surrounding ~12 km (long-wavelength atmosphere removed; pairs >= 45 days, weighted by time span); negative = moving away from the satellite (sinking).
 - `nisar_coherence`: mean 12-day NISAR coherence (stable ground/structures near 1; fields, forests, water near 0).
-- `nisar_motion_12d_mm`: NISAR 12-day LOS snapshot. Not a rate: a single pair includes cm-level atmospheric delay.
+- `nisar_motion_12d_mm`: not published. Single 12-day L-band pairs showed +-100s of mm of ionospheric/atmospheric delay.
 - `data/overlays/nisar_hv.png`: NISAR L-band HV backscatter, reprojected to lat/lon, served via `GET /api/overlays`.
 - If a step can't find a dataset, run `python scripts/process_insar.py inspect <file>` and check the printed HDF5 paths.

@@ -7,10 +7,10 @@ M3: ground movement and radar layers from the downloaded NISAR + OPERA files (ru
 
 What it produces (then run:  python scripts/build_grid.py --only score,layers):
     data/interim/feat_insar.parquet   per hex:
-        subsidence_mm_yr      OPERA DISP-S1 line-of-sight velocity, 2021-2025 (negative = moving away from satellite, e.g. sinking)
+        subsidence_mm_yr      OPERA DISP-S1 local line-of-sight velocity 2021-2025, relative to the surrounding ~12 km
+                              (negative = moving away from satellite, e.g. sinking). Long-wavelength atmosphere removed.
         opera_coherence       OPERA temporal coherence (quality)
         nisar_coherence       mean NISAR 12-day interferometric coherence (1 = stable ground/structures, 0 = changing surface)
-        nisar_motion_12d_mm   median NISAR 12-day line-of-sight motion (noisy snapshot; atmosphere not removed)
     data/overlays/nisar_hv.png + overlays.json   NISAR L-band HV backscatter image for the map (EPSG:4326 bounds)
 
 Physics: NISAR L-band wavelength 0.2384 m; LOS displacement = -lambda/(4*pi) * unwrapped phase.
@@ -140,6 +140,18 @@ def read2d(ds, stride: int = 1) -> np.ndarray:
     return a
 
 
+def highpass(a: np.ndarray, block: int) -> np.ndarray:
+    """Remove long-wavelength signal (atmosphere, orbit ramps): subtract a block-median surface (~12 km)."""
+    h, w = a.shape
+    bh, bw = -(-h // block), -(-w // block)
+    pad = np.full((bh * block, bw * block), np.nan, dtype="float32")
+    pad[:h, :w] = a
+    med = np.nanmedian(pad.reshape(bh, block, bw, block).transpose(0, 2, 1, 3).reshape(bh, bw, -1), axis=2)
+    med = np.where(np.isfinite(med), med, np.nanmedian(a))
+    surf = np.repeat(np.repeat(med, block, 0), block, 1)[:h, :w]
+    return a - surf
+
+
 # ------------------------------------------------------------------- NISAR ---
 
 def step_nisar():
@@ -172,14 +184,11 @@ def step_nisar():
             else:
                 coh.append(to_hex(c, x, y, crs, max(1, phase.shape[0] // 2500)))
                 phase[c < 0.3] = np.nan
-            d_mm = -L_BAND_WAVELENGTH_M / (4 * np.pi) * phase * 1000.0
-            d_mm -= np.nanmedian(d_mm)               # relative to scene median (unknown absolute reference)
-            log(f"  {np.isfinite(d_mm).mean():.0%} valid pixels, CRS {crs.to_epsg()}, 12-day motion p5/p95 "
-                f"{np.nanpercentile(d_mm, 5):.1f}/{np.nanpercentile(d_mm, 95):.1f} mm")
-            disp.append(to_hex(d_mm, x, y, crs, max(1, phase.shape[0] // 2500)))
-    D = pd.concat(disp).groupby("hex_id").value.median().rename("nisar_motion_12d_mm")
+            # A single 12-day L-band pair is dominated by ionospheric/tropospheric delay (we saw +-100s of mm),
+            # so we keep coherence (robust) and do not publish 12-day motion.
+            log(f"  CRS {crs.to_epsg()}, coherence median {np.nanmedian(c) if np.isfinite(c).any() else float('nan'):.2f}")
     C = pd.concat(coh).groupby("hex_id").value.mean().rename("nisar_coherence")
-    out = pd.concat([D, C], axis=1).reset_index().rename(columns={"index": "hex_id"})
+    out = C.reset_index()
     out.to_parquet(INTERIM / "insar_nisar.parquet")
     log(f"NISAR: {len(out):,} hexes with coherence/motion")
     return out
@@ -202,11 +211,20 @@ def step_opera():
             continue
         ref, sec = (datetime.strptime(s, "%Y%m%d") for s in m.groups())
         dt_yr = (sec - ref).days / 365.25
+        if dt_yr < 45 / 365.25:
+            log(f"  skip {fp.name[:60]} ({(sec - ref).days} d pair: too short for a rate)")
+            continue
         with h5py.File(fp, "r") as f:
-            p = find(f, "displacement", min_ndim=2)
+            if grid is None:
+                log("  datasets: " + ", ".join(p.split("/")[-1] for p, shp, _ in datasets(f) if len(shp) == 2))
+            p_sw = find(f, "short_wavelength_displacement", min_ndim=2)
+            p = p_sw or find(f, "displacement", min_ndim=2)
             if not p:
                 raise RuntimeError(f"'displacement' not in {fp.name}; run inspect")
             d = read2d(f[p]) * 1000.0                                   # m -> mm
+            pc = find(f, "connected_component_labels", min_ndim=2)
+            if pc and f[pc].shape == d.shape:
+                d[f[pc][()] == 0] = np.nan
             for mname in ("recommended_mask", "water_mask"):
                 pm = find(f, mname, min_ndim=2)
                 if pm and f[pm].shape == d.shape:
@@ -218,9 +236,13 @@ def step_opera():
             if grid is None:
                 x, y = coords(f, p)
                 grid = (x, y, crs_of(f, p, x), d.shape)
+                log(f"  using '{p}'" + ("" if p_sw else " + 12 km high-pass"))
             elif d.shape != grid[3]:
                 log(f"  skip {fp.name}: grid {d.shape} != {grid[3]}")
                 continue
+        d -= np.nanmedian(d)                                            # common reference per pair
+        if not p_sw:
+            d = highpass(d, max(8, int(12000 / abs(float(grid[0][1] - grid[0][0])))))
         rates.append(d / dt_yr)
         weights.append(dt_yr ** 2)      # rate error ~ 1/dt  ->  weight dt^2
         if tc is not None:
@@ -231,6 +253,7 @@ def step_opera():
     R = np.stack(rates)
     W = np.array(weights)[:, None, None] * np.isfinite(R)
     v = np.nansum(np.nan_to_num(R) * W, axis=0) / np.where(W.sum(0) > 0, W.sum(0), np.nan)
+    v[np.isfinite(R).sum(0) < 3] = np.nan          # need >= 3 pairs per pixel
     x, y, crs, shape = grid
     stride = max(1, shape[0] // 2500)
     log(f"OPERA: {len(rates)} pairs; LOS velocity p5/p50/p95 = {np.nanpercentile(v, 5):.1f}/{np.nanpercentile(v, 50):.1f}/"
