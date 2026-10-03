@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from typing import Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 CONTRACT_VERSION = "1.2.0"  # 1.1: county_households, county_homes_share_pct, field_sources | 1.2: hazards.nisar_*, nisar_coherence layer, /api/overlays
 
@@ -45,13 +45,30 @@ LayerName = Literal["suitability", "burden", "pressure", "subsidence", "water_st
 
 # -------------------------------------------------------------- requests ---
 
+_ALIASES = {
+    "closed-loop-liquid": "liquid", "closed_loop_liquid": "liquid", "closed-loop": "liquid", "liquid-cooling": "liquid",
+    "air-cooled": "air", "dry": "air",
+    "grid-solar": "grid_solar", "grid+solar": "grid_solar", "solar": "grid_solar", "gas-turbines": "gas", "onsite-gas": "gas",
+    "ai-training": "ai", "ai_training": "ai", "training": "ai", "mixed-cloud": "mixed", "mixed_cloud": "mixed", "cloud": "mixed",
+}
+
+
 class AnalyzeRequest(BaseModel):
     lat: float = Field(..., ge=-90, le=90, examples=[35.655])
     lon: float = Field(..., ge=-180, le=180, examples=[-78.462])
-    mw: float = Field(100, ge=1, le=2000, description="IT load in MW")
+    mw: float = Field(100, ge=1, le=2000, description="IT load in MW (any value; UI presets 20/50/100/300/1000)")
     cooling: Cooling = "evaporative"
     power: Power = "grid"
     workload: Workload = "ai"
+
+    @field_validator("cooling", "power", "workload", mode="before")
+    @classmethod
+    def _alias(cls, v):
+        """Accept friendly spellings (e.g. 'closed-loop-liquid', 'grid-solar', 'ai-training'); canonical values are returned."""
+        if isinstance(v, str):
+            k = v.strip().lower()
+            return _ALIASES.get(k, k)
+        return v
 
 
 class SuggestRequest(AnalyzeRequest):
