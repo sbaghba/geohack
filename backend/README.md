@@ -70,7 +70,9 @@ tail -f download.log
 | Command | Gets | Size guide |
 | --- | --- | --- |
 | `probe` | Counts for NISAR GCOV/GUNW/soil moisture + OPERA DISP-S1 over the Triangle | — |
-| `nisar --list` / `--max 1` | NISAR L2 GCOV provisional, newest scene | GCOV HDF5 files are large; check `--list` first |
+| `nisar --list` / `--max 1` | NISAR L2 GCOV provisional, newest dual-pol scene over the demo point | ~6-7 GB each |
+| `nisar --product gunw --max 4` | NISAR L2 interferograms (subsidence) | check `--list` |
+| `nisar --product sme2 --max 1` | NISAR L3 soil moisture | check `--list` |
 | `opera --list` / `--frame N --max 12` | OPERA DISP-S1 granules, evenly spaced since 2022 | ~12 files for one frame |
 | `landcover` | ESA WorldCover 2021 10 m tiles covering NC (public S3) | 8 tiles |
 
@@ -86,17 +88,58 @@ backend/
     config.py          env settings
     contract.py        imports ../contract/schemas.py + mock builders
     errors.py          {"error","detail"} handlers
-    llm_tools.py       Gemini tool schemas + system prompt (used in M2)
+    llm_tools.py       Gemini tool schemas + system prompt
+    reference.py       sourced constants: eGRID, EIA prices, NC county tax, model assumptions
+    impact.py          energy/carbon/water/jobs/tax formulas + mitigations
+    store.py           loads grid + points, spatial lookups
+    live.py            FEMA flood-zone point query
+    real.py            real Report + suggest from the grid
     services/
-      analyze.py       analyze + suggest   (M2: real grid + impact model)
-      layers.py        layer list + GeoJSON (M3: real layers)
-      chat.py          SSE stream           (M2: Gemini loop)
+      analyze.py       real when data/grid exists, else sample
+      layers.py        data/layers/*.geojson, else sample
+      chat.py          Gemini streaming loop with server-side tools
   scripts/
     gemini_smoke_test.py
     download_data.py
+    build_grid.py      NC grid ETL (A100 server)
   tests/test_api.py
 ```
 
-## Next (M2)
+## M2: real data
 
-Grid build (H3 res 7 over NC) + P0 joins, `impact.py` from `contract/make_mock.py::core_metrics`, live FEMA/Overpass lookups, and the real Gemini loop in `services/chat.py`.
+**1. Build the grid on the A100 server** (~10-30 min first run; downloads cached in `data/raw`):
+
+```bash
+cd ~/envs/geohack && git pull && cd backend
+pip install -r requirements.txt -r requirements-etl.txt
+python -u scripts/build_grid.py 2>&1 | tee build.log
+```
+
+Steps: `boundaries` (Census + H3 hexes) → `census` (ACS 2023 pop, households, income, county unemployment) → `nri` (FEMA NRI hazards + social vulnerability) → `aqueduct` (WRI water stress; ~1 GB zip) → `landcover` (WorldCover shares) → `osm` (substations, power lines, schools, hospitals) → `score` → `layers`.
+A failed step is reported and skipped; re-run just that one with `--only aqueduct`.
+
+**2. Commit the outputs** (small) and pull them on the laptop / Render:
+
+```bash
+git add data/grid data/points data/layers && git commit -m "NC grid" && git push
+```
+
+**3. Switch to real data:** set `USE_MOCK=false` in `backend/.env` (Render: already false) and restart uvicorn.
+`/api/health` shows `grid_rows` > 0; reports come back with `"mock": false`.
+
+What's real vs. not yet:
+
+| Field | Source |
+| --- | --- |
+| energy, carbon, water, jobs, tax | model (`app/reference.py`) with eGRID 2023, EIA 2024 price, NCDOR 2025-26 county tax |
+| substation/line distance, schools/hospitals within 1 km | OSM points (exact, at request time) |
+| water stress | WRI Aqueduct 4.0 |
+| hazards, social vulnerability | FEMA NRI tracts; flood zone = live FEMA NFHL query |
+| population, households, income, unemployment | ACS 2023 5-year |
+| land converted | ESA WorldCover shares × campus acres |
+| scores | percentiles across all NC hexes (see `step_score`) |
+| subsidence, siting pressure, drought | M3 (null + listed in `missing`) |
+
+Outside NC (tier 2): eGRID state rate, EIA state price, FEMA flood zone; the rest null with `outside_nc` flag.
+
+**Chat:** with `GEMINI_API_KEY` set, `/api/chat` runs the real Gemini loop (tools execute server-side and stream `report` / `suggestions` events). Without a key it falls back to the scripted reply.

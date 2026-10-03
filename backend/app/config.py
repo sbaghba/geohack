@@ -33,7 +33,7 @@ class Settings:
 
     # Data
     data_dir: Path = Path(os.getenv("DATA_DIR", str(BACKEND_DIR / "data")))
-    use_mock: bool = _bool("USE_MOCK", True)  # M1: everything served from the contract mocks
+    use_mock: bool = _bool("USE_MOCK", False)  # true = force sample data; false = real grid when data/grid exists
 
     # HTTP
     allowed_origins: list[str] = field(default_factory=lambda: _list(

@@ -4,3 +4,4 @@
 backend/data/raw
 *.docx
 .git
+backend/data/interim

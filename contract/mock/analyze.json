@@ -1,7 +1,7 @@
 {
-  "contract_version": "1.0.0",
+  "contract_version": "1.1.0",
   "mock": true,
-  "generated_at": "2026-10-03T17:11:19+00:00",
+  "generated_at": "2026-10-03T20:57:22+00:00",
   "request": {
     "lat": 35.655,
     "lon": -78.462,
@@ -47,7 +47,9 @@
     "annual_mwh": 840960.0,
     "peak_grid_mw": 120.0,
     "homes_equiv": 80091.0,
-    "county_share_pct": 38.0,
+    "county_share_pct": null,
+    "county_households": 88000.0,
+    "county_homes_share_pct": 91.0,
     "grid_region": "SRVC",
     "price_usd_per_mwh": 75.0,
     "annual_cost_usd": 63072000.0,
@@ -157,6 +159,12 @@
   ],
   "sources": [
     {
+      "key": "model",
+      "name": "SiteSense impact model (assumptions in backend/app/reference.py)",
+      "url": "https://github.com/sbaghba/geohack",
+      "vintage": null
+    },
+    {
       "key": "egrid",
       "name": "EPA eGRID",
       "url": "https://www.epa.gov/egrid",
@@ -187,15 +195,27 @@
       "vintage": null
     },
     {
-      "key": "qcew",
-      "name": "BLS QCEW",
-      "url": "https://www.bls.gov/cew/",
+      "key": "eia",
+      "name": "EIA state electricity profiles (2024 avg retail price)",
+      "url": "https://www.eia.gov/electricity/state/",
       "vintage": null
     },
     {
-      "key": "nlcd",
-      "name": "NLCD",
-      "url": "https://www.mrlc.gov",
+      "key": "ncdor",
+      "name": "NC Dept. of Revenue county tax rates 2025-26",
+      "url": "https://www.ncdor.gov/taxes-forms/property-tax/property-tax-rates/county-property-tax-rates-and-reappraisal-schedules/fiscal-year-2025-2026",
+      "vintage": null
+    },
+    {
+      "key": "osm",
+      "name": "OpenStreetMap",
+      "url": "https://www.openstreetmap.org",
+      "vintage": null
+    },
+    {
+      "key": "worldcover",
+      "name": "ESA WorldCover 2021",
+      "url": "https://esa-worldcover.org",
       "vintage": null
     },
     {
@@ -206,7 +226,27 @@
     }
   ],
   "missing": [
+    "energy.county_share_pct",
     "hazards.subsidence_mm_yr",
     "hazards.nri.coastal_flooding"
-  ]
+  ],
+  "field_sources": {
+    "energy": "model",
+    "carbon": "model",
+    "carbon.grid_lb_per_mwh": "egrid",
+    "energy.price_usd_per_mwh": "eia",
+    "water": "model",
+    "water.aqueduct_stress": "aqueduct",
+    "water.aqueduct_label": "aqueduct",
+    "economy": "model",
+    "economy.county_unemployed": "acs",
+    "economy.property_tax_usd_yr": "ncdor",
+    "hazards.nri": "nri",
+    "hazards.fema_zone": "nfhl",
+    "community": "acs",
+    "community.svi_pct": "nri",
+    "community.schools_1km": "osm",
+    "land.converted_acres": "worldcover",
+    "scores": "model"
+  }
 }

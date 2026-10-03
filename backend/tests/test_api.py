@@ -16,6 +16,19 @@ client = TestClient(app)
 SITE = {"lat": 35.655, "lon": -78.462}
 
 
+import pytest  # noqa: E402
+
+import app.services.analyze as _analyze  # noqa: E402
+import app.services.layers as _layers  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def _force_mock(monkeypatch):
+    """These tests check the contract shapes on sample data, even after a real grid is built."""
+    monkeypatch.setattr(_analyze, "real_mode", lambda: False)
+    monkeypatch.setattr(_layers, "real_mode", lambda: False)
+
+
 def test_health():
     r = client.get("/api/health")
     assert r.status_code == 200 and r.json()["ok"] is True

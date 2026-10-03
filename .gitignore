@@ -19,5 +19,5 @@ backend/data/raw/
 .DS_Store
 ~$*.docx
 
-# exported plan docs
-*.docx
+# build intermediates
+backend/data/interim/

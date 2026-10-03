@@ -20,7 +20,7 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
-CONTRACT_VERSION = "1.0.0"
+CONTRACT_VERSION = "1.1.0"  # 1.1: additive — energy.county_households, energy.county_homes_share_pct, report.field_sources
 
 # ----------------------------------------------------------------- enums ---
 
@@ -102,6 +102,8 @@ class Energy(BaseModel):
     peak_grid_mw: float = Field(..., description="mw x PUE")
     homes_equiv: float
     county_share_pct: Optional[float] = Field(None, description="Site use as % of county electricity use")
+    county_households: Optional[float] = None
+    county_homes_share_pct: Optional[float] = Field(None, description="homes_equiv as % of the county's households")
     grid_region: Optional[str] = Field(None, examples=["SRVC"], description="eGRID subregion")
     price_usd_per_mwh: Optional[float] = None
     annual_cost_usd: Optional[float] = None
@@ -228,6 +230,7 @@ class Report(BaseModel):
     mitigations: list[Mitigation] = Field(default_factory=list)
     sources: list[Source] = Field(default_factory=list)
     missing: list[str] = Field(default_factory=list, description="Dotted paths of fields that are null for lack of data")
+    field_sources: dict[str, str] = Field(default_factory=dict, description="Dotted path (or section) -> Source.key, e.g. 'water.aqueduct_stress': 'aqueduct', 'water': 'model'")
 
 
 # --------------------------------------------------------------- suggest ---

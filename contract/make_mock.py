@@ -47,6 +47,15 @@ MOCK_PRICE = 75.0               # $/MWh industrial placeholder
 MOCK_TAX_RATE = 0.66            # $ per $100 assessed placeholder
 
 
+SAMPLE_FIELD_SOURCES = {
+    "energy": "model", "carbon": "model", "carbon.grid_lb_per_mwh": "egrid", "energy.price_usd_per_mwh": "eia",
+    "water": "model", "water.aqueduct_stress": "aqueduct", "water.aqueduct_label": "aqueduct",
+    "economy": "model", "economy.county_unemployed": "acs", "economy.property_tax_usd_yr": "ncdor",
+    "hazards.nri": "nri", "hazards.fema_zone": "nfhl", "community": "acs", "community.svi_pct": "nri",
+    "community.schools_1km": "osm", "land.converted_acres": "worldcover", "scores": "model",
+}
+
+
 def core_metrics(req: AnalyzeRequest, grid_lb: float, price: float, tax_rate: float) -> dict:
     pue, wue = PUE[req.cooling], WUE[req.cooling]
     mwh = req.mw * pue * UTIL[req.workload] * 8760
@@ -85,7 +94,8 @@ def build_report(req: AnalyzeRequest) -> Report:
         ),
         energy=Energy(
             pue=m["pue"], annual_mwh=round(m["mwh"]), peak_grid_mw=round(req.mw * m["pue"], 1),
-            homes_equiv=round(m["mwh"] * 1000 / HOME_KWH), county_share_pct=38.0, grid_region="SRVC",
+            homes_equiv=round(m["mwh"] * 1000 / HOME_KWH), county_share_pct=None, grid_region="SRVC",
+            county_households=88000, county_homes_share_pct=round(m["mwh"] * 1000 / HOME_KWH / 88000 * 100, 1),
             price_usd_per_mwh=MOCK_PRICE, annual_cost_usd=round(m["cost"]),
             nearest_substation_km=3.2, nearest_substation_kv=230, nearest_line_km=1.8, nearest_line_kv=230,
         ),
@@ -129,16 +139,20 @@ def build_report(req: AnalyzeRequest) -> Report:
             ]),
         ],
         sources=[
+            Source(key="model", name="SiteSense impact model (assumptions in backend/app/reference.py)", url="https://github.com/sbaghba/geohack"),
             Source(key="egrid", name="EPA eGRID", url="https://www.epa.gov/egrid"),
             Source(key="aqueduct", name="WRI Aqueduct", url="https://www.wri.org/aqueduct"),
             Source(key="nri", name="FEMA National Risk Index", url="https://hazards.fema.gov/nri/"),
             Source(key="nfhl", name="FEMA National Flood Hazard Layer", url="https://www.fema.gov/flood-maps/national-flood-hazard-layer"),
             Source(key="acs", name="US Census ACS", url="https://www.census.gov/data/developers.html"),
-            Source(key="qcew", name="BLS QCEW", url="https://www.bls.gov/cew/"),
-            Source(key="nlcd", name="NLCD", url="https://www.mrlc.gov"),
+            Source(key="eia", name="EIA state electricity profiles (2024 avg retail price)", url="https://www.eia.gov/electricity/state/"),
+            Source(key="ncdor", name="NC Dept. of Revenue county tax rates 2025-26", url="https://www.ncdor.gov/taxes-forms/property-tax/property-tax-rates/county-property-tax-rates-and-reappraisal-schedules/fiscal-year-2025-2026"),
+            Source(key="osm", name="OpenStreetMap", url="https://www.openstreetmap.org"),
+            Source(key="worldcover", name="ESA WorldCover 2021", url="https://esa-worldcover.org"),
             Source(key="opera", name="OPERA DISP-S1", url="https://www.earthdata.nasa.gov/data/catalog/asf-opera-l3-disp-s1-v1-1"),
         ],
-        missing=["hazards.subsidence_mm_yr", "hazards.nri.coastal_flooding"],
+        missing=["energy.county_share_pct", "hazards.subsidence_mm_yr", "hazards.nri.coastal_flooding"],
+        field_sources=SAMPLE_FIELD_SOURCES,
     )
 
 

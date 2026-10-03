@@ -1,4 +1,6 @@
-# SiteSense API Contract v1.0.0
+# SiteSense API Contract v1.1.0
+
+> 1.1.0 (additive): `energy.county_households`, `energy.county_homes_share_pct`, `report.field_sources` (dotted path or section → `sources[].key`).
 
 The agreement between frontend (Leaflet) and backend (FastAPI + Gemini) for WolfHacks 2026.
 `schemas.py` is the source of truth; this page explains it in plain words. If they ever disagree, `schemas.py` wins and this page gets fixed.
@@ -71,6 +73,7 @@ Layer names: `suitability`, `burden`, `pressure`, `subsidence`, `water_stress`.
 | `mitigations[]` | toggles | `{key, label, deltas[{field, before, after, pct_change}]}` |
 | `sources[]` | every card's "source" link | `{key, name, url, vintage}` — card shows sources whose `key` it uses |
 | `missing[]` | badges | dotted paths that are null |
+| `field_sources` | per-number source link | `{"water.aqueduct_stress": "aqueduct", "water": "model", ...}` — a field inherits its section's key |
 
 Flags: `in_floodplain`, `in_wetland`, `protected_area`, `school_within_500m`, `outside_nc`.
 

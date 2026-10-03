@@ -1,0 +1,8 @@
+# For scripts/build_grid.py and scripts/download_data.py (A100 server), on top of requirements.txt
+geopandas>=1.0
+pyogrio>=0.7
+rasterio>=1.3
+scipy>=1.10
+requests>=2.31
+asf_search>=8
+h5py>=3.9

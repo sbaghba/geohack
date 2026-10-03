@@ -13,6 +13,6 @@ services:
       - key: GEMINI_MODEL
         value: gemini-3.8-flash
       - key: USE_MOCK
-        value: "true"        # flip to "false" once data/grid is in place (M2)
+        value: "false"       # real data whenever backend/data/grid is committed; "true" forces sample data
       - key: ALLOWED_ORIGINS
         value: http://localhost:5173,http://127.0.0.1:5500
