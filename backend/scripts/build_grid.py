@@ -166,7 +166,23 @@ def _acs_tracts(get: list[str]) -> pd.DataFrame:
 
 def step_census():
     log("census ACS 2023 5-year")
-    t = _acs_tracts(["B01003_001E", "B11001_001E", "B19013_001E"])
+    try:
+        t = _acs_tracts(["B01003_001E", "B11001_001E", "B19013_001E"])
+    except Exception as e:
+        if not (INTERIM / "nri_tracts.parquet").exists():
+            raise
+        log(f"  ACS unavailable ({str(e)[:80]}...)")
+        log("  FALLBACK: population from Census 2020 via FEMA NRI tracts (no households/income/unemployment)")
+        nri = pd.read_parquet(INTERIM / "nri_tracts.parquet")
+        w = _weights().merge(nri[["GEOID", "POPULATION"]], on="GEOID", how="left")
+        w["pop"] = pd.to_numeric(w.POPULATION, errors="coerce") * w.w_tract
+        g = w.groupby("hex_id").agg(pop=("pop", "sum"))
+        g["households"] = np.nan
+        g["median_income_usd"] = np.nan
+        g["pop_src"] = "nri"
+        _merge(g.reset_index(), "census")
+        log(f"  NC population in grid: {g['pop'].sum():,.0f}")
+        return
     t["GEOID"] = t.state + t.county + t.tract
     c = _acs(["B11001_001E", "B23025_003E", "B23025_005E"], {"for": "county:*", "in": f"state:{NC_FIPS}"})
     c["county_fips"] = c.state + c.county
@@ -198,7 +214,7 @@ def step_nri():
     log("FEMA National Risk Index (tracts)")
     rows, offset = [], 0
     while True:
-        r = requests.get(NRI, params={"where": "STATEABBRV='NC'", "outFields": ",".join(["TRACTFIPS", "RISK_RATNG", *NRI_FIELDS]),
+        r = requests.get(NRI, params={"where": "STATEABBRV='NC'", "outFields": ",".join(["TRACTFIPS", "RISK_RATNG", "POPULATION", *NRI_FIELDS]),
                                       "returnGeometry": "false", "f": "json", "resultOffset": offset, "resultRecordCount": 2000},
                          timeout=120, headers=UA)
         r.raise_for_status()
@@ -209,6 +225,7 @@ def step_nri():
             break
         offset += len(feats)
     nri = pd.DataFrame(rows).rename(columns={"TRACTFIPS": "GEOID", **NRI_FIELDS})
+    nri.to_parquet(INTERIM / "nri_tracts.parquet")
     log(f"  {len(nri):,} tracts")
     w = _weights().merge(nri, on="GEOID", how="left")
     out = {}
@@ -470,7 +487,8 @@ def step_score():
     land_easy = col("lc_developed").fillna(0) + col("lc_cropland").fillna(0) + col("lc_pasture").fillna(0)
     sensitive = col("lc_forest").fillna(0) + 2 * col("lc_wetland").fillna(0)
     suit_parts = [_pct(col("dist_sub_km"), False), _pct(col("dist_line_km"), False), _pct(col("bws_score"), False),
-                  _pct(col("nri_overall"), False), _pct(land_easy), _pct(col("lc_water").fillna(0), False)]
+                  _pct(col("nri_overall"), False), _pct(land_easy), _pct(col("lc_water").fillna(0), False),
+                  _pct(col("subsidence_mm_yr").abs(), False)]   # stable ground preferred; neutral where no radar coverage
     burden_parts = [_pct(col("pop_3km")), _pct(col("svi_pct")), _pct(col("bws_score")), _pct(sensitive), _pct(col("schools_2km"))]
     g["suitability"] = (100 * sum(suit_parts) / len(suit_parts)).round(1)
     g["burden"] = (100 * sum(burden_parts) / len(burden_parts)).round(1)
@@ -494,11 +512,13 @@ def step_score():
 def step_layers():
     log("export map layers")
     g = pd.read_parquet(GRID / "nc_h3r7.parquet")
-    for name, col in {"suitability": "suitability", "burden": "burden", "water_stress": "bws_score"}.items():
+    for name, col in {"suitability": "suitability", "burden": "burden", "water_stress": "bws_score",
+                      "subsidence": "subsidence_mm_yr", "nisar_coherence": "nisar_coherence"}.items():
         if col not in g:
             continue
         feats = []
-        for h, v in zip(g.hex_id, g[col]):
+        sub = g[g[col].notna()] if name in ("subsidence", "nisar_coherence") else g   # radar layers: covered hexes only
+        for h, v in zip(sub.hex_id, sub[col]):
             ring = [[round(lng, 4), round(lat, 4)] for lat, lng in h3.cell_to_boundary(h)]
             ring.append(ring[0])
             feats.append({"type": "Feature", "geometry": {"type": "Polygon", "coordinates": [ring]},
@@ -508,7 +528,7 @@ def step_layers():
         log(f"  {p.name}: {p.stat().st_size / 1e6:.1f} MB")
 
 
-STEPS = {"boundaries": step_boundaries, "census": step_census, "nri": step_nri, "aqueduct": step_aqueduct,
+STEPS = {"boundaries": step_boundaries, "nri": step_nri, "census": step_census, "aqueduct": step_aqueduct,
          "landcover": step_landcover, "osm": step_osm, "score": step_score, "layers": step_layers}
 
 

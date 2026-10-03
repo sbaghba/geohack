@@ -1,7 +1,7 @@
 {
-  "contract_version": "1.1.0",
+  "contract_version": "1.2.0",
   "mock": true,
-  "generated_at": "2026-10-03T20:57:22+00:00",
+  "generated_at": "2026-10-03T21:52:09+00:00",
   "request": {
     "lat": 35.655,
     "lon": -78.462,
@@ -93,7 +93,9 @@
       "tornado": 66.0
     },
     "nri_rating": "Relatively Moderate",
-    "subsidence_mm_yr": null
+    "subsidence_mm_yr": -0.8,
+    "nisar_coherence": 0.62,
+    "nisar_motion_12d_mm": -1.2
   },
   "community": {
     "pop_1km": 850.0,
@@ -223,11 +225,16 @@
       "name": "OPERA DISP-S1",
       "url": "https://www.earthdata.nasa.gov/data/catalog/asf-opera-l3-disp-s1-v1-1",
       "vintage": null
+    },
+    {
+      "key": "nisar",
+      "name": "NASA-ISRO NISAR L2 (ASF DAAC)",
+      "url": "https://nisar-docs.asf.alaska.edu/",
+      "vintage": null
     }
   ],
   "missing": [
     "energy.county_share_pct",
-    "hazards.subsidence_mm_yr",
     "hazards.nri.coastal_flooding"
   ],
   "field_sources": {
@@ -243,6 +250,9 @@
     "economy.property_tax_usd_yr": "ncdor",
     "hazards.nri": "nri",
     "hazards.fema_zone": "nfhl",
+    "hazards.subsidence_mm_yr": "opera",
+    "hazards.nisar_coherence": "nisar",
+    "hazards.nisar_motion_12d_mm": "nisar",
     "community": "acs",
     "community.svi_pct": "nri",
     "community.schools_1km": "osm",

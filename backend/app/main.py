@@ -7,14 +7,15 @@ SiteSense backend.
 """
 from __future__ import annotations
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+from fastapi.staticfiles import StaticFiles
 
 from . import errors
 from .config import settings
 from .contract import (
-    CONTRACT_VERSION, AnalyzeRequest, ChatRequest, Health, LayerList, LayerName, Report,
+    CONTRACT_VERSION, AnalyzeRequest, ChatRequest, Health, LayerList, LayerName, OverlayList, Report,
     SuggestRequest, SuggestResponse,
 )
 from .services import analyze as analyze_svc
@@ -31,6 +32,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 errors.install(app)
+layers_svc.overlays_dir().mkdir(parents=True, exist_ok=True)
+app.mount("/static/overlays", StaticFiles(directory=str(layers_svc.overlays_dir())), name="overlays")
 
 
 def _grid_rows() -> int:
@@ -73,6 +76,11 @@ def layers():
 @app.get("/api/layers/{name}")
 def layer(name: LayerName):
     return layers_svc.get_layer(name)
+
+
+@app.get("/api/overlays", response_model=OverlayList)
+def overlays(request: Request):
+    return layers_svc.list_overlays(str(request.base_url))
 
 
 @app.post("/api/chat")

@@ -1,4 +1,6 @@
-# SiteSense API Contract v1.1.0
+# SiteSense API Contract v1.2.0
+
+> 1.2.0 (additive): `hazards.nisar_coherence`, `hazards.nisar_motion_12d_mm`, layer `nisar_coherence`, `GET /api/overlays` (NISAR radar image).
 
 > 1.1.0 (additive): `energy.county_households`, `energy.county_homes_share_pct`, `report.field_sources` (dotted path or section → `sources[].key`).
 
@@ -38,9 +40,10 @@ The stub already reacts to inputs: changing `mw` or `cooling` changes energy, wa
 | `GET /api/layers` | — | `{ layers: LayerInfo[] }` (name, label, unit, min, max, higher_is) | < 0.5 s |
 | `GET /api/layers/{name}` | — | GeoJSON FeatureCollection of hex polygons, `properties: { hex_id, value }` | < 2 s |
 | `POST /api/chat` | `ChatRequest` | `text/event-stream` (see Chat) | first token < 3 s |
+| `GET /api/overlays` | — | `{ overlays: [{name, label, url, bounds:[[s,w],[n,e]], date, source, legend}] }` → `L.imageOverlay(url, bounds)` | < 0.5 s |
 | `GET /api/health` | — | `{ ok, llm_ok, model, grid_rows, contract_version }` | instant |
 
-Layer names: `suitability`, `burden`, `pressure`, `subsidence`, `water_stress`.
+Layer names: `suitability`, `burden`, `pressure`, `subsidence`, `water_stress`, `nisar_coherence`. Radar layers (`subsidence`, `nisar_coherence`) only contain hexes inside the satellite scenes (the Triangle demo area).
 
 ### AnalyzeRequest
 
@@ -67,7 +70,7 @@ Layer names: `suitability`, `burden`, `pressure`, `subsidence`, `water_stress`.
 | `carbon` | Energy | `grid_lb_per_mwh, tons_co2_yr, cars_equiv` |
 | `water` | Water | `wue_l_per_kwh, onsite_m3_yr, offsite_m3_yr, households_equiv, aqueduct_stress (0-5), aqueduct_label, drought_category` |
 | `economy` | Jobs & Taxes | `capex_usd, construction_jobs, permanent_jobs, county_unemployed, county_unemployment_pct, property_tax_usd_yr, county_levy_share_pct` |
-| `hazards` | Hazards | `fema_zone, in_floodplain, nri{overall, hurricane, heat_wave, riverine_flooding, coastal_flooding, tornado}, nri_rating, subsidence_mm_yr` |
+| `hazards` | Hazards | `fema_zone, in_floodplain, nri{overall, hurricane, heat_wave, riverine_flooding, coastal_flooding, tornado}, nri_rating, subsidence_mm_yr` (OPERA 2021-25, LOS, negative = sinking), `nisar_coherence` (0-1, NISAR ground stability), `nisar_motion_12d_mm` |
 | `community` | Community | `pop_1km/3km/5km, homes_1km, svi_pct, median_income_usd, schools_1km[], hospitals_1km[]` (each `{name, kind, lat, lon, distance_km}`) |
 | `land` | Community | `acres, converted_acres{forest, cropland, pasture, wetland, developed, other}, flags[]` |
 | `mitigations[]` | toggles | `{key, label, deltas[{field, before, after, pct_change}]}` |

@@ -39,6 +39,14 @@
       "min": 0.0,
       "max": 5.0,
       "higher_is": "worse"
+    },
+    {
+      "name": "nisar_coherence",
+      "label": "Ground stability (NISAR radar coherence)",
+      "unit": "0-1",
+      "min": 0.0,
+      "max": 1.0,
+      "higher_is": "better"
     }
   ]
 }

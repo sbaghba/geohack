@@ -31,6 +31,11 @@ def _f(v):
         return None
 
 
+def _f1(v, nd=1):
+    v = _f(v)
+    return None if v is None else round(v, nd)
+
+
 def _missing(obj, prefix="") -> list[str]:
     out = []
     if isinstance(obj, dict):
@@ -39,8 +44,12 @@ def _missing(obj, prefix="") -> list[str]:
     return out
 
 
+VINTAGE = {"opera": "2021-2025", "nisar": "Jul-Oct 2026", "egrid": "2023", "eia": "2024", "ncdor": "2025-26", "acs": "2019-2023", "aqueduct": "4.0 (2023)",
+           "worldcover": "2021", "census_tiger": "2023", "osm": "Oct 2026"}
+
+
 def _sources(keys: set[str]) -> list[Source]:
-    return [Source(key=k, name=R.SOURCES[k][0], url=R.SOURCES[k][1]) for k in R.SOURCES if k in keys]
+    return [Source(key=k, name=R.SOURCES[k][0], url=R.SOURCES[k][1], vintage=VINTAGE.get(k)) for k in R.SOURCES if k in keys]
 
 
 FIELD_SOURCES_NC = {
@@ -50,7 +59,8 @@ FIELD_SOURCES_NC = {
     "water": "model", "water.aqueduct_stress": "aqueduct", "water.aqueduct_label": "aqueduct",
     "economy": "model", "economy.county_unemployed": "acs", "economy.county_unemployment_pct": "acs",
     "economy.property_tax_usd_yr": "ncdor", "hazards.fema_zone": "nfhl", "hazards.in_floodplain": "nfhl",
-    "hazards.nri": "nri", "hazards.nri_rating": "nri", "community": "acs", "community.svi_pct": "nri",
+    "hazards.nri": "nri", "hazards.nri_rating": "nri", "hazards.subsidence_mm_yr": "opera",
+    "hazards.nisar_coherence": "nisar", "hazards.nisar_motion_12d_mm": "nisar", "community": "acs", "community.svi_pct": "nri",
     "community.schools_1km": "osm", "community.hospitals_1km": "osm", "land": "model", "land.converted_acres": "worldcover",
     "scores": "model", "site.county": "census_tiger",
 }
@@ -107,7 +117,7 @@ def report(req: AnalyzeRequest) -> Report:
         request=req,
         site=Site(lat=req.lat, lon=req.lon, hex_id=hex_id, label=f"{county} County, NC" if county else "North Carolina",
                   county=county, state="NC", tier=1),
-        scores=Scores(suitability=s, burden=b, quadrant=row.get("quadrant") or "tradeoff",
+        scores=Scores(suitability=round(s, 1), burden=round(b, 1), quadrant=row.get("quadrant") or "tradeoff",
                       pressure=_f(row.get("pressure")), pressure_drivers=[]),
         energy=Energy(pue=m["pue"], annual_mwh=round(m["mwh"]), peak_grid_mw=round(m["peak_mw"], 1), homes_equiv=round(m["homes"]),
                       county_share_pct=None, county_households=hh,
@@ -117,20 +127,22 @@ def report(req: AnalyzeRequest) -> Report:
                       nearest_line_km=None if line_km is None else round(line_km, 2), nearest_line_kv=line_kv),
         carbon=Carbon(grid_lb_per_mwh=round(m["lb"], 1), tons_co2_yr=round(m["tons"]), cars_equiv=round(m["cars"])),
         water=Water(wue_l_per_kwh=m["wue"], onsite_m3_yr=round(m["onsite_m3"]), offsite_m3_yr=round(m["offsite_m3"]),
-                    households_equiv=round(m["households_water"]), aqueduct_stress=_f(row.get("bws_score")),
+                    households_equiv=round(m["households_water"]), aqueduct_stress=_f1(row.get("bws_score"), 2),
                     aqueduct_label=row.get("bws_label") if isinstance(row.get("bws_label"), str) else None, drought_category=None),
         economy=Economy(capex_usd=m["capex"], construction_jobs=round(m["construction_jobs"]), permanent_jobs=round(m["permanent_jobs"]),
                         county_unemployed=unemployed, county_unemployment_pct=None if c is None else round(_f(c["unemployment_pct"]) or 0, 1),
                         property_tax_usd_yr=None if m["tax"] is None else round(m["tax"]), county_levy_share_pct=None),
         hazards=Hazards(fema_zone=zone, in_floodplain=sfha,
-                        nri=NriScores(overall=_f(row.get("nri_overall")), hurricane=_f(row.get("nri_hurricane")),
-                                      heat_wave=_f(row.get("nri_heat_wave")), riverine_flooding=_f(row.get("nri_riverine_flooding")),
-                                      coastal_flooding=_f(row.get("nri_coastal_flooding")), tornado=_f(row.get("nri_tornado"))),
+                        nri=NriScores(overall=_f1(row.get("nri_overall")), hurricane=_f1(row.get("nri_hurricane")),
+                                      heat_wave=_f1(row.get("nri_heat_wave")), riverine_flooding=_f1(row.get("nri_riverine_flooding")),
+                                      coastal_flooding=_f1(row.get("nri_coastal_flooding")), tornado=_f1(row.get("nri_tornado"))),
                         nri_rating=row.get("nri_rating") if isinstance(row.get("nri_rating"), str) else None,
-                        subsidence_mm_yr=_f(row.get("subsidence_mm_yr"))),
+                        subsidence_mm_yr=_f1(row.get("subsidence_mm_yr"), 2),
+                        nisar_coherence=_f1(row.get("nisar_coherence"), 2),
+                        nisar_motion_12d_mm=_f1(row.get("nisar_motion_12d_mm"), 1)),
         community=Community(pop_1km=None if pop_d is None else round(pop_d * math.pi), pop_3km=_round(row.get("pop_3km")),
                             pop_5km=_round(row.get("pop_5km")), homes_1km=None if hh_d is None else round(hh_d * math.pi),
-                            svi_pct=_f(row.get("svi_pct")), median_income_usd=_round(row.get("median_income_usd")),
+                            svi_pct=_f1(row.get("svi_pct")), median_income_usd=_round(row.get("median_income_usd")),
                             schools_1km=schools, hospitals_1km=hospitals),
         land=Land(acres=acres, converted_acres=LandConverted(forest=share("forest"), cropland=share("cropland"), pasture=share("pasture"),
                                                              wetland=share("wetland"), developed=share("developed"),

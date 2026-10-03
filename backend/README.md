@@ -138,8 +138,25 @@ What's real vs. not yet:
 | population, households, income, unemployment | ACS 2023 5-year |
 | land converted | ESA WorldCover shares × campus acres |
 | scores | percentiles across all NC hexes (see `step_score`) |
-| subsidence, siting pressure, drought | M3 (null + listed in `missing`) |
+| subsidence (mm/yr), NISAR coherence, radar image | M3: `scripts/process_insar.py` (below) |
+| siting pressure, drought | M3 (null + listed in `missing`) |
 
 Outside NC (tier 2): eGRID state rate, EIA state price, FEMA flood zone; the rest null with `outside_nc` flag.
 
 **Chat:** with `GEMINI_API_KEY` set, `/api/chat` runs the real Gemini loop (tools execute server-side and stream `report` / `suggestions` events). Without a key it falls back to the scripted reply.
+
+
+## M3a: ground movement from NISAR + OPERA
+
+```bash
+pip install -r requirements-etl.txt
+python -u scripts/process_insar.py all 2>&1 | tee insar.log     # ~5-10 min
+python -u scripts/build_grid.py --only score,layers
+git add data/grid data/layers data/overlays && git commit -m "InSAR layers" && git push
+```
+
+- `subsidence_mm_yr`: OPERA DISP-S1 (Sentinel-1) line-of-sight velocity from 12 pairs 2021-2025, weighted by time span; negative = moving away from the satellite (sinking).
+- `nisar_coherence`: mean 12-day NISAR coherence (stable ground/structures near 1; fields, forests, water near 0).
+- `nisar_motion_12d_mm`: NISAR 12-day LOS snapshot. Not a rate: a single pair includes cm-level atmospheric delay.
+- `data/overlays/nisar_hv.png`: NISAR L-band HV backscatter, reprojected to lat/lon, served via `GET /api/overlays`.
+- If a step can't find a dataset, run `python scripts/process_insar.py inspect <file>` and check the printed HDF5 paths.

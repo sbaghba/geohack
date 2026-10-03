@@ -47,6 +47,7 @@ def real_data(tmp_path, monkeypatch):
         "nri_tornado": 65.0, "svi_pct": rng.uniform(10, 90, n), "nri_rating": "Relatively Moderate",
         "dist_sub_km": rng.uniform(0.5, 20, n), "suitability": rng.uniform(20, 80, n), "burden": rng.uniform(20, 80, n),
         "hard_flag": False,
+        "subsidence_mm_yr": rng.uniform(-6, 2, n), "nisar_coherence": rng.uniform(0.2, 0.9, n), "nisar_motion_12d_mm": rng.uniform(-5, 5, n),
     })
     g["pop_dens_km2"] = g["pop"] / 5.16
     g["hh_dens_km2"] = g["households"] / 5.16
@@ -64,6 +65,10 @@ def real_data(tmp_path, monkeypatch):
     pd.DataFrame({"lat": [CENTER[0] + 0.003], "lon": [CENTER[1]], "name": ["Test Elementary"], "kv": [np.nan]}).to_parquet(tmp_path / "points" / "schools.parquet")
     pd.DataFrame({"lat": [35.9], "lon": [-78.9], "name": ["Far Hospital"], "kv": [np.nan]}).to_parquet(tmp_path / "points" / "hospitals.parquet")
     (tmp_path / "layers" / "suitability.geojson").write_text(json.dumps({"type": "FeatureCollection", "features": []}))
+    (tmp_path / "overlays").mkdir()
+    (tmp_path / "overlays" / "nisar_hv.png").write_bytes(b"\x89PNG fake")
+    (tmp_path / "overlays" / "overlays.json").write_text(json.dumps([{"name": "nisar_hv", "label": "NISAR HV", "url": "/static/overlays/nisar_hv.png",
+        "bounds": [[35.5, -79.0], [36.3, -77.9]], "date": "2026-10-01", "source": "nisar"}]))
 
     s2 = dataclasses.replace(settings, data_dir=tmp_path, use_mock=False)
     fresh = store_mod.Store()
@@ -89,6 +94,8 @@ def test_tier1_report(real_data):
     assert "school_within_500m" in r.land.flags and r.hazards.fema_zone == "X"
     assert "hazards.nri.coastal_flooding" in r.missing and "energy.county_share_pct" in r.missing
     assert r.field_sources["water.aqueduct_stress"] == "aqueduct"
+    assert r.hazards.subsidence_mm_yr is not None and 0 <= r.hazards.nisar_coherence <= 1
+    assert r.field_sources["hazards.subsidence_mm_yr"] == "opera" and r.field_sources["hazards.nisar_coherence"] == "nisar"
     keys = {s.key for s in r.sources}
     assert {"egrid", "aqueduct", "nri", "acs", "osm"} <= keys
 
@@ -119,3 +126,10 @@ def test_layers_real(real_data):
     c = TestClient(app)
     assert [l["name"] for l in c.get("/api/layers").json()["layers"]] == ["suitability"]
     assert c.get("/api/layers/burden").json()["features"] == []
+
+
+def test_overlays(real_data):
+    c = TestClient(app)
+    o = c.get("/api/overlays").json()["overlays"]
+    assert len(o) == 1 and o[0]["url"].startswith("http") and o[0]["url"].endswith("/static/overlays/nisar_hv.png")
+    assert o[0]["bounds"] == [[35.5, -79.0], [36.3, -77.9]]

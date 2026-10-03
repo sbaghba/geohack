@@ -95,6 +95,13 @@ export async function getLayer(name) {
   return request(`/api/layers/${encodeURIComponent(name)}`);
 }
 
+/** GET /api/overlays -> { overlays: [{ name, label, url, bounds: [[s,w],[n,e]], date, source, legend }] }
+ *  Use: L.imageOverlay(o.url, o.bounds, { opacity: 0.8 }).addTo(map) */
+export async function listOverlays() {
+  if (CONFIG.mode === 'mock') return mockFile('overlays.json');
+  return request('/api/overlays');
+}
+
 /** GET /api/health -> { ok, llm_ok, model, grid_rows, contract_version } */
 export async function health() {
   if (CONFIG.mode === 'mock') return { ok: true, llm_ok: false, model: null, grid_rows: 0, contract_version: 'mock' };

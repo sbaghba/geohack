@@ -20,7 +20,7 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
-CONTRACT_VERSION = "1.1.0"  # 1.1: additive — energy.county_households, energy.county_homes_share_pct, report.field_sources
+CONTRACT_VERSION = "1.2.0"  # 1.1: county_households, county_homes_share_pct, field_sources | 1.2: hazards.nisar_*, nisar_coherence layer, /api/overlays
 
 # ----------------------------------------------------------------- enums ---
 
@@ -40,7 +40,7 @@ Flag = Literal[
     "outside_nc",         # tier 2: coarse data only
 ]
 MitigationKey = Literal["closed_loop_cooling", "onsite_solar", "larger_setback", "smaller_campus"]
-LayerName = Literal["suitability", "burden", "pressure", "subsidence", "water_stress"]
+LayerName = Literal["suitability", "burden", "pressure", "subsidence", "water_stress", "nisar_coherence"]
 
 
 # -------------------------------------------------------------- requests ---
@@ -154,7 +154,9 @@ class Hazards(BaseModel):
     in_floodplain: Optional[bool] = None
     nri: NriScores
     nri_rating: Optional[str] = Field(None, examples=["Relatively Moderate"])
-    subsidence_mm_yr: Optional[float] = Field(None, description="OPERA DISP-S1 vertical rate; negative = sinking")
+    subsidence_mm_yr: Optional[float] = Field(None, description="OPERA DISP-S1 line-of-sight velocity 2021-2025, mm/yr; negative = moving away from the satellite (sinking)")
+    nisar_coherence: Optional[float] = Field(None, ge=0, le=1, description="NISAR 12-day interferometric coherence: 1 = stable ground/structures, 0 = changing surface")
+    nisar_motion_12d_mm: Optional[float] = Field(None, description="NISAR 12-day line-of-sight motion snapshot (noisy; atmosphere not removed)")
 
 
 class Poi(BaseModel):
@@ -267,6 +269,21 @@ class LayerInfo(BaseModel):
 
 class LayerList(BaseModel):
     layers: list[LayerInfo]
+
+
+class OverlayInfo(BaseModel):
+    """A georeferenced image for L.imageOverlay(url, bounds)."""
+    name: str = Field(..., examples=["nisar_hv"])
+    label: str
+    url: str = Field(..., description="Absolute URL of the PNG")
+    bounds: list[list[float]] = Field(..., description="[[south, west], [north, east]]")
+    date: Optional[str] = None
+    source: str = Field(..., description="Source.key")
+    legend: dict[str, str] = Field(default_factory=dict)
+
+
+class OverlayList(BaseModel):
+    overlays: list[OverlayInfo]
 
 # GET /api/layers/{name} returns plain GeoJSON (not modeled here):
 # FeatureCollection of hex Polygons, properties = {"hex_id": str, "value": float | null}

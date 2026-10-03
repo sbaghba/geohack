@@ -51,7 +51,8 @@ SAMPLE_FIELD_SOURCES = {
     "energy": "model", "carbon": "model", "carbon.grid_lb_per_mwh": "egrid", "energy.price_usd_per_mwh": "eia",
     "water": "model", "water.aqueduct_stress": "aqueduct", "water.aqueduct_label": "aqueduct",
     "economy": "model", "economy.county_unemployed": "acs", "economy.property_tax_usd_yr": "ncdor",
-    "hazards.nri": "nri", "hazards.fema_zone": "nfhl", "community": "acs", "community.svi_pct": "nri",
+    "hazards.nri": "nri", "hazards.fema_zone": "nfhl", "hazards.subsidence_mm_yr": "opera",
+    "hazards.nisar_coherence": "nisar", "hazards.nisar_motion_12d_mm": "nisar", "community": "acs", "community.svi_pct": "nri",
     "community.schools_1km": "osm", "land.converted_acres": "worldcover", "scores": "model",
 }
 
@@ -114,7 +115,7 @@ def build_report(req: AnalyzeRequest) -> Report:
             fema_zone="X", in_floodplain=False,
             nri=NriScores(overall=61.0, hurricane=78.0, heat_wave=55.0, riverine_flooding=40.0,
                           coastal_flooding=None, tornado=66.0),
-            nri_rating="Relatively Moderate", subsidence_mm_yr=None,
+            nri_rating="Relatively Moderate", subsidence_mm_yr=-0.8, nisar_coherence=0.62, nisar_motion_12d_mm=-1.2,
         ),
         community=Community(
             pop_1km=850, pop_3km=9400, pop_5km=24100, homes_1km=310, svi_pct=47, median_income_usd=68000,
@@ -150,8 +151,9 @@ def build_report(req: AnalyzeRequest) -> Report:
             Source(key="osm", name="OpenStreetMap", url="https://www.openstreetmap.org"),
             Source(key="worldcover", name="ESA WorldCover 2021", url="https://esa-worldcover.org"),
             Source(key="opera", name="OPERA DISP-S1", url="https://www.earthdata.nasa.gov/data/catalog/asf-opera-l3-disp-s1-v1-1"),
+            Source(key="nisar", name="NASA-ISRO NISAR L2 (ASF DAAC)", url="https://nisar-docs.asf.alaska.edu/"),
         ],
-        missing=["energy.county_share_pct", "hazards.subsidence_mm_yr", "hazards.nri.coastal_flooding"],
+        missing=["energy.county_share_pct", "hazards.nri.coastal_flooding"],
         field_sources=SAMPLE_FIELD_SOURCES,
     )
 
@@ -193,6 +195,7 @@ LAYERS = LayerList(layers=[
     LayerInfo(name="pressure", label="Siting pressure (model)", unit="score 0-100", min=0, max=100, higher_is="neutral"),
     LayerInfo(name="subsidence", label="Ground movement (OPERA)", unit="mm/yr", min=-20, max=20, higher_is="neutral"),
     LayerInfo(name="water_stress", label="Water stress (Aqueduct)", unit="0-5", min=0, max=5, higher_is="worse"),
+    LayerInfo(name="nisar_coherence", label="Ground stability (NISAR radar coherence)", unit="0-1", min=0, max=1, higher_is="better"),
 ])
 
 
@@ -205,6 +208,7 @@ def main():
         "suggest.json": build_suggest(req, report).model_dump(mode="json"),
         "layers.json": LAYERS.model_dump(mode="json"),
         "layer_sample.geojson": build_layer(req.lat, req.lon, 0.0),
+        "overlays.json": {"overlays": []},
     }
     for name, data in files.items():
         (OUT / name).write_text(json.dumps(data, indent=2))
