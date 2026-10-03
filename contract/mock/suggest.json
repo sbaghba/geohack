@@ -1,0 +1,127 @@
+{
+  "origin": {
+    "lat": 35.655,
+    "lon": -78.462,
+    "hex_id": "872ad6820ffffff",
+    "label": "near Clayton, NC (sample)",
+    "county": "Johnston",
+    "state": "NC",
+    "tier": 1
+  },
+  "origin_scores": {
+    "suitability": 72.0,
+    "burden": 58.0,
+    "quadrant": "tradeoff",
+    "pressure": 81.0,
+    "pressure_drivers": [
+      {
+        "key": "near_230kv_line",
+        "label": "230 kV line 1.8 km away",
+        "direction": "+"
+      },
+      {
+        "key": "low_flood_share",
+        "label": "Little floodplain nearby",
+        "direction": "+"
+      },
+      {
+        "key": "high_water_stress",
+        "label": "Medium-high water stress",
+        "direction": "-"
+      }
+    ]
+  },
+  "radius_km": 50.0,
+  "candidates": [
+    {
+      "rank": 1,
+      "lat": 35.835,
+      "lon": -78.712,
+      "hex_id": "872a896eaffffff",
+      "label": "near Smithfield, NC (sample)",
+      "distance_km": 30.1,
+      "scores": {
+        "suitability": 73.0,
+        "burden": 40.0,
+        "quadrant": "good",
+        "pressure": 65.0,
+        "pressure_drivers": []
+      },
+      "deltas": [
+        {
+          "field": "water.aqueduct_stress",
+          "before": 2.6,
+          "after": 1.3,
+          "pct_change": null
+        },
+        {
+          "field": "community.pop_3km",
+          "before": 9400.0,
+          "after": 3900.0,
+          "pct_change": null
+        }
+      ],
+      "reason": "Same 230 kV access, lower water stress, fewer residents within 3 km (sample)"
+    },
+    {
+      "rank": 2,
+      "lat": 35.535,
+      "lon": -78.162,
+      "hex_id": "872ad44a1ffffff",
+      "label": "near Wendell, NC (sample)",
+      "distance_km": 30.2,
+      "scores": {
+        "suitability": 72.0,
+        "burden": 44.0,
+        "quadrant": "good",
+        "pressure": 60.0,
+        "pressure_drivers": []
+      },
+      "deltas": [
+        {
+          "field": "water.aqueduct_stress",
+          "before": 2.6,
+          "after": 1.5,
+          "pct_change": null
+        },
+        {
+          "field": "community.pop_3km",
+          "before": 9400.0,
+          "after": 4700.0,
+          "pct_change": null
+        }
+      ],
+      "reason": "Same 230 kV access, lower water stress, fewer residents within 3 km (sample)"
+    },
+    {
+      "rank": 3,
+      "lat": 35.955,
+      "lon": -78.362,
+      "hex_id": "872a8939affffff",
+      "label": "near Benson, NC (sample)",
+      "distance_km": 34.5,
+      "scores": {
+        "suitability": 71.0,
+        "burden": 48.0,
+        "quadrant": "good",
+        "pressure": 55.0,
+        "pressure_drivers": []
+      },
+      "deltas": [
+        {
+          "field": "water.aqueduct_stress",
+          "before": 2.6,
+          "after": 1.7000000000000002,
+          "pct_change": null
+        },
+        {
+          "field": "community.pop_3km",
+          "before": 9400.0,
+          "after": 5500.0,
+          "pct_change": null
+        }
+      ],
+      "reason": "Same 230 kV access, lower water stress, fewer residents within 3 km (sample)"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+[
+  {
+    "name": "nisar_hv",
+    "label": "NISAR L-band radar (HV, vegetation/structure)",
+    "url": "/static/overlays/nisar_hv.png",
+    "bounds": [
+      [
+        33.03632,
+        -81.35662
+      ],
+      [
+        36.22595,
+        -77.42619
+      ]
+    ],
+    "date": "2026-10-01",
+    "source": "nisar",
+    "legend": {
+      "low": "-26 dB (smooth: water, pavement, bare)",
+      "high": "-6 dB (forest, structures)"
+    }
+  }
+]
