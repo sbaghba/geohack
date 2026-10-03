@@ -78,7 +78,7 @@ def real_data(tmp_path, monkeypatch):
         monkeypatch.setattr(mod, "settings", s2)
     for mod in (store_mod, real):
         monkeypatch.setattr(mod, "store", fresh)
-    monkeypatch.setattr(real, "fema_flood_zone", lambda lat, lon: ("AE", True) if lat > 35.75 else ("X", False))
+    monkeypatch.setattr(real, "point_lookups", lambda lat, lon: ((("AE", True) if lat > 35.75 else ("X", False)), "D1"))
     yield tmp_path
     store_mod._points.cache_clear()
 
@@ -94,6 +94,7 @@ def test_tier1_report(real_data):
     assert "school_within_500m" in r.land.flags and r.hazards.fema_zone == "X"
     assert "hazards.nri.coastal_flooding" in r.missing and "energy.county_share_pct" in r.missing
     assert r.field_sources["water.aqueduct_stress"] == "aqueduct"
+    assert r.water.drought_category == "D1" and r.field_sources["water.drought_category"] == "usdm"
     assert r.hazards.subsidence_mm_yr is not None and 0 <= r.hazards.nisar_coherence <= 1
     assert r.field_sources["hazards.subsidence_mm_yr"] == "opera" and r.field_sources["hazards.nisar_coherence"] == "nisar"
     keys = {s.key for s in r.sources}

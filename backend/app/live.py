@@ -33,3 +33,38 @@ def fema_flood_zone(lat: float, lon: float) -> tuple[str | None, bool | None]:
     except Exception as e:
         log.warning("FEMA NFHL lookup failed: %s", e)
         return None, None
+
+
+USDM = "https://gis.fema.gov/arcgis/rest/services/Partner/Drought_Current/MapServer/0/query"
+_DM = {0: "D0", 1: "D1", 2: "D2", 3: "D3", 4: "D4"}
+
+
+@lru_cache(maxsize=2048)
+def _usdm(lat2: float, lon2: float) -> str:
+    params = {"geometry": f"{lon2},{lat2}", "geometryType": "esriGeometryPoint", "inSR": 4326,
+              "spatialRel": "esriSpatialRelIntersects", "outFields": "dm", "returnGeometry": "false", "f": "json"}
+    r = httpx.get(USDM, params=params, timeout=TIMEOUT, headers={"User-Agent": "SiteSense-WolfHacks/1.0"})
+    r.raise_for_status()
+    js = r.json()
+    if "error" in js:
+        raise RuntimeError(js["error"])
+    levels = [f["attributes"].get("dm") for f in js.get("features", []) if f["attributes"].get("dm") is not None]
+    return _DM[max(levels)] if levels else "none"     # USDM categories nest; the worst one applies
+
+
+def usdm_drought(lat: float, lon: float) -> str | None:
+    """Current US Drought Monitor category at a point: 'none', 'D0'..'D4', or None if unavailable."""
+    try:
+        return _usdm(round(lat, 2), round(lon, 2))
+    except Exception as e:
+        log.warning("USDM lookup failed: %s", e)
+        return None
+
+
+def point_lookups(lat: float, lon: float) -> tuple[tuple[str | None, bool | None], str | None]:
+    """FEMA flood zone + drought category in parallel (each capped by LIVE_TIMEOUT_S)."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    with ThreadPoolExecutor(max_workers=2) as ex:
+        f1, f2 = ex.submit(fema_flood_zone, lat, lon), ex.submit(usdm_drought, lat, lon)
+        return f1.result(), f2.result()

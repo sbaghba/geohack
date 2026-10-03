@@ -15,7 +15,7 @@ from .contract import (
 )
 from .errors import out_of_coverage
 from .impact import metrics, mitigations
-from .live import fema_flood_zone
+from .live import point_lookups
 from .store import haversine_km, store
 
 PIN_HEX_SPACING_KM = 2.4  # center-to-center distance of res-7 hexes
@@ -44,7 +44,7 @@ def _missing(obj, prefix="") -> list[str]:
     return out
 
 
-VINTAGE = {"opera": "2021-2025", "nisar": "Jul-Oct 2026", "egrid": "2023", "eia": "2024", "ncdor": "2025-26", "acs": "2019-2023", "aqueduct": "4.0 (2023)",
+VINTAGE = {"usdm": "current week", "opera": "2021-2025", "nisar": "Jul-Oct 2026", "egrid": "2023", "eia": "2024", "ncdor": "2025-26", "acs": "2019-2023", "aqueduct": "4.0 (2023)",
            "worldcover": "2021", "census_tiger": "2023", "osm": "Oct 2026"}
 
 
@@ -56,7 +56,7 @@ FIELD_SOURCES_NC = {
     "energy": "model", "energy.grid_region": "egrid", "energy.price_usd_per_mwh": "eia", "energy.county_households": "acs",
     "energy.nearest_substation_km": "osm", "energy.nearest_substation_kv": "osm", "energy.nearest_line_km": "osm",
     "energy.nearest_line_kv": "osm", "carbon": "model", "carbon.grid_lb_per_mwh": "egrid",
-    "water": "model", "water.aqueduct_stress": "aqueduct", "water.aqueduct_label": "aqueduct",
+    "water": "model", "water.aqueduct_stress": "aqueduct", "water.aqueduct_label": "aqueduct", "water.drought_category": "usdm",
     "economy": "model", "economy.county_unemployed": "acs", "economy.county_unemployment_pct": "acs",
     "economy.property_tax_usd_yr": "ncdor", "hazards.fema_zone": "nfhl", "hazards.in_floodplain": "nfhl",
     "hazards.nri": "nri", "hazards.nri_rating": "nri", "hazards.subsidence_mm_yr": "opera",
@@ -97,7 +97,7 @@ def report(req: AnalyzeRequest) -> Report:
     line_km, line_kv, _ = store.nearest("lines", req.lat, req.lon, R.MIN_GRID_KV)
     schools = _pois("school", "schools", req.lat, req.lon, 1.0)
     hospitals = _pois("hospital", "hospitals", req.lat, req.lon, 1.0)
-    zone, sfha = fema_flood_zone(req.lat, req.lon)
+    (zone, sfha), drought = point_lookups(req.lat, req.lon)
 
     flags = []
     if sfha:
@@ -128,7 +128,7 @@ def report(req: AnalyzeRequest) -> Report:
         carbon=Carbon(grid_lb_per_mwh=round(m["lb"], 1), tons_co2_yr=round(m["tons"]), cars_equiv=round(m["cars"])),
         water=Water(wue_l_per_kwh=m["wue"], onsite_m3_yr=round(m["onsite_m3"]), offsite_m3_yr=round(m["offsite_m3"]),
                     households_equiv=round(m["households_water"]), aqueduct_stress=_f1(row.get("bws_score"), 2),
-                    aqueduct_label=row.get("bws_label") if isinstance(row.get("bws_label"), str) else None, drought_category=None),
+                    aqueduct_label=row.get("bws_label") if isinstance(row.get("bws_label"), str) else None, drought_category=drought),
         economy=Economy(capex_usd=m["capex"], construction_jobs=round(m["construction_jobs"]), permanent_jobs=round(m["permanent_jobs"]),
                         county_unemployed=unemployed, county_unemployment_pct=None if c is None else round(_f(c["unemployment_pct"]) or 0, 1),
                         property_tax_usd_yr=None if m["tax"] is None else round(m["tax"]), county_levy_share_pct=None),
@@ -168,10 +168,11 @@ def _tier2(req: AnalyzeRequest) -> Report:
     grid_lb = R.EGRID_STATE_LB[st]
     price = R.EIA_PRICE_CENTS.get(st, 12.94) * 10
     m = metrics(req, grid_lb, price, None)
-    zone, sfha = fema_flood_zone(req.lat, req.lon)
+    (zone, sfha), drought = point_lookups(req.lat, req.lon)
     flags = ["outside_nc"] + (["in_floodplain"] if sfha else [])
     fs = {"energy": "model", "energy.grid_region": "egrid", "energy.price_usd_per_mwh": "eia", "carbon": "model",
-          "carbon.grid_lb_per_mwh": "egrid", "water": "model", "economy": "model", "hazards.fema_zone": "nfhl", "land": "model"}
+          "carbon.grid_lb_per_mwh": "egrid", "water": "model", "water.drought_category": "usdm", "economy": "model",
+          "hazards.fema_zone": "nfhl", "land": "model"}
     rep = Report(
         generated_at=datetime.now(timezone.utc).isoformat(timespec="seconds"), request=req,
         site=Site(lat=req.lat, lon=req.lon, hex_id=None, label=f"{st} (coarse data outside NC)", county=None, state=st, tier=2),
@@ -180,7 +181,7 @@ def _tier2(req: AnalyzeRequest) -> Report:
                       grid_region=f"{st} (state avg)", price_usd_per_mwh=round(price, 1), annual_cost_usd=round(m["cost"])),
         carbon=Carbon(grid_lb_per_mwh=grid_lb, tons_co2_yr=round(m["tons"]), cars_equiv=round(m["cars"])),
         water=Water(wue_l_per_kwh=m["wue"], onsite_m3_yr=round(m["onsite_m3"]), offsite_m3_yr=round(m["offsite_m3"]),
-                    households_equiv=round(m["households_water"])),
+                    households_equiv=round(m["households_water"]), drought_category=drought),
         economy=Economy(capex_usd=m["capex"], construction_jobs=round(m["construction_jobs"]), permanent_jobs=round(m["permanent_jobs"])),
         hazards=Hazards(fema_zone=zone, in_floodplain=sfha, nri=NriScores()),
         community=Community(),
