@@ -20,7 +20,7 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
-CONTRACT_VERSION = "1.2.0"  # 1.1: county_households, county_homes_share_pct, field_sources | 1.2: hazards.nisar_*, nisar_coherence layer, /api/overlays
+CONTRACT_VERSION = "1.3.0"  # 1.1: county_households, county_homes_share_pct, field_sources | 1.2: hazards.nisar_*, nisar_coherence layer, /api/overlays
 
 # ----------------------------------------------------------------- enums ---
 
@@ -109,7 +109,8 @@ class Scores(BaseModel):
     suitability: float = Field(..., ge=0, le=100, description="Developer view; higher = better site")
     burden: float = Field(..., ge=0, le=100, description="Community view; higher = worse for residents")
     quadrant: Quadrant
-    pressure: Optional[float] = Field(None, ge=0, le=100, description="Siting Pressure model: relative likelihood developers target this hex")
+    pressure: Optional[float] = Field(None, ge=0, le=100, description="Siting Pressure: percentile within North Carolina of the model score (how much this spot resembles where data centers get built)")
+    pressure_us_pct: Optional[float] = Field(None, ge=0, le=100, description="Same model score as a percentile among all lower-48 hexes")
     pressure_drivers: list[Driver] = Field(default_factory=list, description="Top SHAP drivers, max 3")
 
 

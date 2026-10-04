@@ -63,7 +63,7 @@ FIELD_SOURCES_NC = {
     "hazards.nri": "nri", "hazards.nri_rating": "nri", "hazards.subsidence_mm_yr": "opera",
     "hazards.nisar_coherence": "nisar", "hazards.nisar_motion_12d_mm": "nisar", "community": "acs", "community.svi_pct": "nri",
     "community.schools_1km": "osm", "community.hospitals_1km": "osm", "land": "model", "land.converted_acres": "worldcover",
-    "scores": "model", "scores.pressure": "pressure_model", "scores.pressure_drivers": "pressure_model",
+    "scores": "model", "scores.pressure": "pressure_model", "scores.pressure_us_pct": "pressure_model", "scores.pressure_drivers": "pressure_model",
     "site.county": "census_tiger",
 }
 
@@ -130,7 +130,8 @@ def report(req: AnalyzeRequest) -> Report:
         site=Site(lat=req.lat, lon=req.lon, hex_id=hex_id, label=f"{county} County, NC" if county else "North Carolina",
                   county=county, state="NC", tier=1),
         scores=Scores(suitability=round(s, 1), burden=round(b, 1), quadrant=row.get("quadrant") or "tradeoff",
-                      pressure=_f(row.get("pressure")), pressure_drivers=_drivers(row)),
+                      pressure=_f(row.get("pressure")), pressure_us_pct=_f(row.get("pressure_us_pct")),
+                      pressure_drivers=_drivers(row)),
         energy=Energy(pue=m["pue"], annual_mwh=round(m["mwh"]), peak_grid_mw=round(m["peak_mw"], 1), homes_equiv=round(m["homes"]),
                       county_share_pct=None, county_households=hh,
                       county_homes_share_pct=round(100 * m["homes"] / hh, 1) if hh else None,
@@ -254,7 +255,7 @@ def _r2(v):
 
 def _scores(r) -> Scores:
     return Scores(suitability=_f(r.get("suitability")) or 50, burden=_f(r.get("burden")) or 50,
-                  quadrant=r.get("quadrant") or "tradeoff", pressure=_f(r.get("pressure")))
+                  quadrant=r.get("quadrant") or "tradeoff", pressure=_f(r.get("pressure")), pressure_us_pct=_f(r.get("pressure_us_pct")))
 
 
 def _reason(o, r) -> str:

@@ -388,12 +388,15 @@ def step_predict():
         order = np.argsort(-np.abs(contrib[i]))[:3]
         drivers[row.hex_id] = json.dumps([{"key": FEATURES[j], "label": _label(FEATURES[j], float(row[FEATURES[j]])),
                                            "direction": "+" if contrib[i][j] > 0 else "-"} for j in order])
+    raw = dict(zip(scores.hex_id, scores.score))
+    nc_raw = nc_grid.parent.map(raw)
     out = pd.DataFrame({"hex_id": nc_grid.hex_id,
-                        "pressure": nc_grid.parent.map(pct),
+                        "pressure": (100 * nc_raw.rank(pct=True)).round(1),          # within NC: what the map shows
+                        "pressure_us_pct": nc_grid.parent.map(pct),                   # vs all lower-48 hexes
                         "pressure_drivers": nc_grid.parent.map(drivers)})
     out.to_parquet(INTERIM / "feat_pressure.parquet")
-    log(f"NC: {out.pressure.notna().sum():,} hexes scored; pressure = percentile among all CONUS hexes "
-        f"(NC median {out.pressure.median():.0f}, max {out.pressure.max():.0f})")
+    log(f"NC: {out.pressure.notna().sum():,} hexes scored; pressure = percentile within NC; "
+        f"national percentile median {out.pressure_us_pct.median():.0f} (NC ranks high nationally)")
     log("next: python scripts/build_grid.py --only score,layers")
 
 

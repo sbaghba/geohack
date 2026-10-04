@@ -1,4 +1,6 @@
-# SiteSense API Contract v1.2.0
+# SiteSense API Contract v1.3.0
+
+> 1.3.0 (additive): `scores.pressure_us_pct` (national percentile); `scores.pressure` is now the percentile within NC.
 
 > 1.2.0 (additive): `hazards.nisar_coherence`, `hazards.nisar_motion_12d_mm`, layer `nisar_coherence`, `GET /api/overlays` (NISAR radar image).
 

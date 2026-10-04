@@ -86,7 +86,7 @@ def build_report(req: AnalyzeRequest) -> Report:
         site=Site(lat=req.lat, lon=req.lon, hex_id=h3.latlng_to_cell(req.lat, req.lon, 7),
                   label="near Clayton, NC (sample)", county="Johnston", state="NC", tier=1),
         scores=Scores(
-            suitability=72, burden=58, quadrant="tradeoff", pressure=81,
+            suitability=72, burden=58, quadrant="tradeoff", pressure=81, pressure_us_pct=93,
             pressure_drivers=[
                 Driver(key="near_230kv_line", label="230 kV line 1.8 km away", direction="+"),
                 Driver(key="low_flood_share", label="Little floodplain nearby", direction="+"),
