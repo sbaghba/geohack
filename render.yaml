@@ -15,4 +15,4 @@ services:
       - key: USE_MOCK
         value: "false"       # real data whenever backend/data/grid is committed; "true" forces sample data
       - key: ALLOWED_ORIGINS
-        value: http://localhost:5173,http://127.0.0.1:5500
+        value: https://doesyourdatacenter.fit,https://www.doesyourdatacenter.fit,http://localhost:5173,http://127.0.0.1:5500

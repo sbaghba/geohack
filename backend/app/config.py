@@ -41,7 +41,8 @@ class Settings:
         "http://localhost:5173,http://127.0.0.1:5173,http://localhost:5500,http://127.0.0.1:5500,http://localhost:8080",
     ))
     allow_origin_regex: str | None = os.getenv(
-        "ALLOW_ORIGIN_REGEX", r"https://.*\.(github\.io|vercel\.app|trycloudflare\.com)"
+        "ALLOW_ORIGIN_REGEX",
+        r"https://(.*\.(github\.io|vercel\.app|trycloudflare\.com|netlify\.app|pages\.dev)|([a-z0-9-]+\.)?doesyourdatacenter\.fit)"
     ) or None
 
     @property
