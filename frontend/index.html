@@ -9,7 +9,89 @@
         <div id="main-flex">
             <div id="map"></div>
             <div id="sidebar">
-                <button onclick="resetMap()">Reset Map</button>
+                <div id="tabs">
+                    <button class="tab active" onclick="switchTab(1)">Overview</button>
+                    <button class="tab" onclick="switchTab(2)">Energy & Carbon</button>
+                    <button class="tab" onclick="switchTab(3)">Water</button>
+                    <button class="tab" onclick="switchTab(4)">Jobs & Taxes</button>
+                    <button class="tab" onclick="switchTab(5)">Community</button>
+                </div>
+
+                <div id="tab-content">
+                    <div class="tab-panel active" id="tab-1">
+                        <h1>Overview</h1>
+                        <div class="tab-else">
+                            <div class="colflex">\
+                                <h2>Suitability Score:</h2>
+                                <p class="big" id="suit">Waiting for pin...</p>
+                            </div>
+                            <div class="colflex">
+                                <h2>Burden Score:</h2>
+                                <p class="big" id="burd">Waiting for pin...</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="tab-panel" id="tab-2">
+                        <h1>Energy & Carbon</h1>
+                        <div class="tab-else">
+                            <div class="colflex">
+                                <h2>Tons of CO2 Per Year:</h2>
+                                <p class="big" id="co2">Waiting for pin...</p>
+                            </div>
+                            <div class="colflex">
+                                <h2>That's this many cars:</h2>
+                                <p class="big" id="cars">Waiting for pin...</p>
+                            </div>
+                            <div class="colflex">
+                                <h2>Annual Megawatt Hours:</h2>
+                                <p class="big" id="mwha">Waiting for pin...</p>
+                            </div>
+                            <div class="colflex">
+                                <h2>That's this many houses:</h2>
+                                <p class="big" id="mwhhouse">Waiting for pin...</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="tab-panel" id="tab-3">
+                        <h1>Water</h1>
+                        <div class="tab-else">
+                            <h2>Meters Cubed of Water Used On Site Per Year:</h2>
+                            <p class="big" id="onwater">Waiting for pin...</p>
+                            <h2>Meters Cubed of Water Used Off Site Per Year:</h2>
+                            <p class="big" id="offwater">Waiting for pin...</p>
+                            <h2>That's this many houses:</h2>
+                            <p class="big" id="houses">Waiting for pin...</p>
+                        </div>
+                    </div>
+                    <div class="tab-panel" id="tab-4">
+                        <h1>Jobs & Taxes</h1>
+                        <div class="tab-else">
+                            <h2>Construction Jobs Created:</h2>
+                            <p class="big" id="conjobs">Waiting for pin...</p>
+                            <h2>Permanent Jobs Created:</h2>
+                            <p class="big" id="permjobs">Waiting for pin...</p>
+                            <h2># of Unemployed In This County:</h2>
+                            <p class="big" id="unemp">Waiting for pin...</p>
+                            <h2># of Unemployed Per Capita:</h2>
+                            <p class="big" id="unpc">Waiting for pin...</p>
+                            <h2>Property Taxes Per Year (USD):</h2>
+                            <p class="big" id="propt">Waiting for pin...</p>
+                        </div>
+                    </div>
+                    <div class="tab-panel" id="tab-5">
+                        <h1>Community</h1>
+                        <div class="tab-else">
+                            <h2>Population Within 1km:</h2>
+                            <p class="big" id="1km">Waiting for pin...</p>
+                            <h2>Population Within 5km:</h2>
+                            <p class="big" id="5km">Waiting for pin...</p>
+                            <h2>Median Income (USD):</h2>
+                            <p class="big" id="medi">Waiting for pin...</p>
+                        </div>
+                    </div>
+                </div>
+
+                <button id="reset-button" onclick="resetMap()">Reset Map</button>
             </div>
         </div>
         <div id="parameter-form" class="invisible">
@@ -129,7 +211,27 @@
 
                 var data = await fetched.json();
 
-                console.log(data);
+                document.getElementById("suit").textContent = data.scores.suitability;
+                document.getElementById("burd").textContent = data.scores.burden;
+
+                document.getElementById("co2").textContent = data.carbon.tons_co2_yr;
+                document.getElementById("cars").textContent = data.carbon.cars_equiv;
+                document.getElementById("mwha").textContent = data.energy.annual_mwh;
+                document.getElementById("mwhhouse").textContent = data.energy.homes_equiv;
+
+                document.getElementById("onwater").textContent = data.water.onsite_m3_yr;
+                document.getElementById("offwater").textContent = data.water.offsite_m3_yr;
+                document.getElementById("houses").textContent = data.water.households_equiv;
+
+                document.getElementById("conjobs").textContent = data.economy.construction_jobs;
+                document.getElementById("permjobs").textContent = data.economy.permanent_jobs;
+                document.getElementById("unemp").textContent = data.economy.county_unemployed;
+                document.getElementById("unpc").textContent = data.economy.county_unemployment_pct;
+                document.getElementById("propt").textContent = data.economy.property_tax_usd_yr;
+
+                document.getElementById("1km").textContent = data.community.pop_1km;
+                document.getElementById("5km").textContent = data.community.pop_5km;
+                document.getElementById("medi").textContent = data.community.median_income_usd;
             }
 
             function resetMap() {
@@ -137,6 +239,19 @@
                 for (i=0; i<markers.length; i++) {
                     map.removeLayer(markers[i]);
                 }
+            }
+
+            function switchTab(tabNumber) {
+                document.querySelectorAll(".tab").forEach(tab => {
+                    tab.classList.remove("active");
+                });
+
+                document.querySelectorAll(".tab-panel").forEach(panel => {
+                    panel.classList.remove("active");
+                });
+
+                document.querySelectorAll(".tab")[tabNumber - 1].classList.add("active");
+                document.getElementById(`tab-${tabNumber}`).classList.add("active");
             }
 
             window.onload = init
