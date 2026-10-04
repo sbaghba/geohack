@@ -1,5 +1,9 @@
-<html>
+<!DOCTYPE html>
+<html lang="en">
     <head>
+        <meta charset="utf-8"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1"/>
+        <title>Does Your Data Center Fit?</title>
         <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
         <link rel="stylesheet" href="style.css"/>
         <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
@@ -7,27 +11,67 @@
 
     <body>
         <div id="main-flex">
-            <div id="map"></div>
+            <div id="map-wrap">
+                <div id="map"></div>
+
+                <!-- AI analyst chat (Gemini) -->
+                <button id="chat-toggle" onclick="toggleChat()">Ask the AI analyst</button>
+                <div id="chat" class="invisible">
+                    <div id="chat-head">
+                        <span>SiteSense AI analyst</span>
+                        <button onclick="toggleChat()" aria-label="Close chat">&times;</button>
+                    </div>
+                    <div id="chat-log"></div>
+                    <div id="chat-chips">
+                        <button class="chip" onclick="askChip(this)">Is this good for my town?</button>
+                        <button class="chip" onclick="askChip(this)">What happens to our water?</button>
+                        <button class="chip" onclick="askChip(this)">How many local jobs, really?</button>
+                        <button class="chip" onclick="askChip(this)">Where would be better within 40 km?</button>
+                    </div>
+                    <form id="chat-form" onsubmit="sendChat(event)">
+                        <input id="chat-input" type="text" placeholder="Ask about this site, or say 'move it 20 km east'..." autocomplete="off"/>
+                        <button type="submit" id="chat-send">Send</button>
+                    </form>
+                </div>
+            </div>
+
             <div id="sidebar">
+                <div id="site-label">Click the map to place a data center</div>
                 <div id="tabs">
                     <button class="tab active" onclick="switchTab(1)">Overview</button>
-                    <button class="tab" onclick="switchTab(2)">Energy & Carbon</button>
+                    <button class="tab" onclick="switchTab(2)">Energy</button>
                     <button class="tab" onclick="switchTab(3)">Water</button>
-                    <button class="tab" onclick="switchTab(4)">Jobs & Taxes</button>
+                    <button class="tab" onclick="switchTab(4)">Jobs</button>
                     <button class="tab" onclick="switchTab(5)">Community</button>
+                    <button class="tab" onclick="switchTab(6)">Risk</button>
                 </div>
 
                 <div id="tab-content">
                     <div class="tab-panel active" id="tab-1">
                         <h1>Overview</h1>
                         <div class="tab-else">
-                            <div class="colflex">
-                                <h2>Suitability Score:</h2>
-                                <p class="big" id="suit">Waiting for pin...</p>
+                            <div class="score-row">
+                                <div class="colflex">
+                                    <h2>Suitability</h2>
+                                    <p class="big" id="suit">Waiting for pin...</p>
+                                    <p class="note">for developers (0-100)</p>
+                                </div>
+                                <div class="colflex">
+                                    <h2>Burden</h2>
+                                    <p class="big" id="burd">Waiting for pin...</p>
+                                    <p class="note">on the community (0-100)</p>
+                                </div>
                             </div>
+                            <p class="verdict" id="quadrant"></p>
                             <div class="colflex">
-                                <h2>Burden Score:</h2>
-                                <p class="big" id="burd">Waiting for pin...</p>
+                                <h2>Siting pressure</h2>
+                                <p class="big" id="pressure">-</p>
+                                <p class="note" id="pressure-us"></p>
+                                <ul class="drivers" id="pressure-drivers"></ul>
+                            </div>
+                            <div class="colflex wide">
+                                <h2>What would reduce the impact?</h2>
+                                <div id="mitigations"></div>
                             </div>
                         </div>
                     </div>
@@ -35,65 +79,92 @@
                         <h1>Energy & Carbon</h1>
                         <div class="tab-else">
                             <div class="colflex">
-                                <h2>Tons of CO2 Per Year:</h2>
-                                <p class="big" id="co2">Waiting for pin...</p>
-                            </div>
-                            <div class="colflex">
-                                <h2>That's this many cars:</h2>
-                                <p class="big" id="cars">Waiting for pin...</p>
-                            </div>
-                            <div class="colflex">
-                                <h2>Annual Megawatt Hours:</h2>
+                                <h2>Electricity per year</h2>
                                 <p class="big" id="mwha">Waiting for pin...</p>
+                                <p class="note" id="mwhhouse"></p>
                             </div>
                             <div class="colflex">
-                                <h2>That's this many houses:</h2>
-                                <p class="big" id="mwhhouse">Waiting for pin...</p>
+                                <h2>CO2 per year</h2>
+                                <p class="big" id="co2">Waiting for pin...</p>
+                                <p class="note" id="cars"></p>
+                            </div>
+                            <div class="colflex">
+                                <h2>Grid hookup</h2>
+                                <p class="big" id="substation">-</p>
+                                <p class="note" id="grid-carbon"></p>
+                            </div>
+                            <div class="colflex">
+                                <h2>Power bill (estimate)</h2>
+                                <p class="big" id="powercost">-</p>
                             </div>
                         </div>
                     </div>
                     <div class="tab-panel" id="tab-3">
                         <h1>Water</h1>
                         <div class="tab-else">
-                            <h2>Meters Cubed of Water Used On Site Per Year:</h2>
+                            <h2>Used on site per year (cooling)</h2>
                             <p class="big" id="onwater">Waiting for pin...</p>
-                            <h2>Meters Cubed of Water Used Off Site Per Year:</h2>
+                            <p class="note" id="houses"></p>
+                            <h2>Used off site per year (power plants)</h2>
                             <p class="big" id="offwater">Waiting for pin...</p>
-                            <h2>That's this many houses:</h2>
-                            <p class="big" id="houses">Waiting for pin...</p>
+                            <h2>Local water stress</h2>
+                            <p class="big" id="waterstress">-</p>
+                            <h2>Drought right now</h2>
+                            <p class="big" id="drought">-</p>
                         </div>
                     </div>
                     <div class="tab-panel" id="tab-4">
                         <h1>Jobs & Taxes</h1>
                         <div class="tab-else">
-                            <h2>Construction Jobs Created:</h2>
+                            <h2>Construction jobs (peak)</h2>
                             <p class="big" id="conjobs">Waiting for pin...</p>
-                            <h2>Permanent Jobs Created:</h2>
+                            <h2>Permanent jobs</h2>
                             <p class="big" id="permjobs">Waiting for pin...</p>
-                            <h2># of Unemployed In This County:</h2>
+                            <h2>Unemployed people in this county</h2>
                             <p class="big" id="unemp">Waiting for pin...</p>
-                            <h2># of Unemployed Per Capita:</h2>
+                            <h2>County unemployment rate</h2>
                             <p class="big" id="unpc">Waiting for pin...</p>
-                            <h2>Property Taxes Per Year (USD):</h2>
+                            <h2>Property taxes per year</h2>
                             <p class="big" id="propt">Waiting for pin...</p>
                         </div>
                     </div>
                     <div class="tab-panel" id="tab-5">
                         <h1>Community</h1>
                         <div class="tab-else">
-                            <h2>Population Within 1km:</h2>
-                            <p class="big" id="1km">Waiting for pin...</p>
-                            <h2>Population Within 5km:</h2>
-                            <p class="big" id="5km">Waiting for pin...</p>
-                            <h2>Median Income (USD):</h2>
+                            <h2>People within 1 km / 3 km / 5 km</h2>
+                            <p class="big" id="pops">Waiting for pin...</p>
+                            <h2>Median household income</h2>
                             <p class="big" id="medi">Waiting for pin...</p>
+                            <h2>Social vulnerability</h2>
+                            <p class="big" id="svi">-</p>
+                            <h2>Schools within 1 km</h2>
+                            <ul class="drivers" id="schools"></ul>
+                            <h2>Land that would be converted</h2>
+                            <p class="note" id="landuse"></p>
+                        </div>
+                    </div>
+                    <div class="tab-panel" id="tab-6">
+                        <h1>Risk & Ground</h1>
+                        <div class="tab-else">
+                            <h2>FEMA flood zone</h2>
+                            <p class="big" id="flood">-</p>
+                            <h2>Natural hazard risk (FEMA)</h2>
+                            <p class="big" id="nri">-</p>
+                            <p class="note" id="nri-detail"></p>
+                            <h2>Ground movement (satellite radar)</h2>
+                            <p class="big" id="subsidence">-</p>
+                            <p class="note" id="coherence"></p>
+                            <h2>Warnings</h2>
+                            <ul class="drivers" id="flags"></ul>
                         </div>
                     </div>
                 </div>
+                <div id="sources"></div>
                 <button id="better-button" onclick="findBetterSpot()">Find Better Spots</button>
                 <button id="reset-button" onclick="resetMap()">Reset Map</button>
             </div>
         </div>
+
         <div id="parameter-form" class="invisible">
             <h1>What type of Data Center?</h1>
             <div class="colflex">
@@ -145,7 +216,12 @@
             <button id="submitter" onclick="submitted()">SUBMIT</button>
         </div>
 
+        <div id="loading" class="invisible"><div class="spinner"></div><p id="loading-text">Analyzing...</p></div>
+        <div id="toast" class="invisible"></div>
+
         <script>
+            const API = 'https://sitesense-api.onrender.com';
+
             var map;
             var canPin;
             var markers;
@@ -155,219 +231,442 @@
             var currentParams = null;
             var originalLat;
             var originalLon;
+            var currentReport = null;
+            var contextLayer = null;          // 1/3/5 km rings + schools
+            var chatHistory = [];
+            var chatBusy = false;
 
+            // ------------------------------------------------------------ helpers
+            function fmt(v, digits = 0) {
+                if (v === null || v === undefined || Number.isNaN(v)) return 'n/a';
+                return Number(v).toLocaleString('en-US', { maximumFractionDigits: digits, minimumFractionDigits: 0 });
+            }
+            function money(v) {
+                if (v === null || v === undefined) return 'n/a';
+                if (Math.abs(v) >= 1e9) return '$' + (v / 1e9).toFixed(1) + 'B';
+                if (Math.abs(v) >= 1e6) return '$' + (v / 1e6).toFixed(1) + 'M';
+                return '$' + fmt(v);
+            }
+            function setText(id, text) { const el = document.getElementById(id); if (el) el.textContent = text; }
+            function setList(id, items) {
+                const ul = document.getElementById(id);
+                ul.innerHTML = '';
+                (items.length ? items : ['None']).forEach(t => { const li = document.createElement('li'); li.textContent = t; ul.appendChild(li); });
+            }
+            function showLoading(on, text) {
+                document.getElementById('loading').classList.toggle('invisible', !on);
+                if (text) setText('loading-text', text);
+            }
+            function toast(msg) {
+                const t = document.getElementById('toast');
+                t.textContent = msg;
+                t.classList.remove('invisible');
+                clearTimeout(toast._t);
+                toast._t = setTimeout(() => t.classList.add('invisible'), 6000);
+            }
+            async function api(path, body) {
+                const slow = setTimeout(() => setText('loading-text', 'Waking up the server (first request can take ~30-60 s)...'), 4000);
+                try {
+                    const res = await fetch(API + path, body ? {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+                    } : {});
+                    const data = await res.json().catch(() => ({}));
+                    if (!res.ok) throw new Error(data.detail || data.error || res.statusText);
+                    return data;
+                } finally {
+                    clearTimeout(slow);
+                }
+            }
+
+            // ---------------------------------------------------------------- map
             function init() {
                 currentLat = null;
                 currentLon = null;
                 canPin = true;
                 markers = [];
-                map = L.map('map').setView([35.777714, -78.649809], 10);
+                map = L.map('map', { preferCanvas: true }).setView([35.777714, -78.649809], 10);
                 var satellite = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}", {
-                attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
-                })
-                var TopPlusOpen_Color = L.tileLayer('http://sgx.geodatenzentrum.de/wmts_topplus_open/tile/1.0.0/web/default/WEBMERCATOR/{z}/{y}/{x}.png', {
+                    attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community'
+                });
+                var TopPlusOpen_Color = L.tileLayer('https://sgx.geodatenzentrum.de/wmts_topplus_open/tile/1.0.0/web/default/WEBMERCATOR/{z}/{y}/{x}.png', {
                     maxZoom: 20,
-                    attribution: 'Map data: &copy; <a href="http://www.govdata.de/dl-de/by-2-0">dl-de/by-2-0</a>'
+                    attribution: 'Map data: &copy; <a href="https://www.govdata.de/dl-de/by-2-0">dl-de/by-2-0</a>'
                 });
                 TopPlusOpen_Color.addTo(map);
                 map.on('click', onMapClick);
+                setupLayers({ 'Map': TopPlusOpen_Color, 'Satellite': satellite });
+                fetch(API + '/api/health').catch(() => {});      // wake the server early
             }
 
             function onMapClick(e) {
                 if (canPin) {
-                    var latlng = e.latlng.toString()
-                    var formatted = latlng.substring(7, latlng.length-2).split(", ")
-                    currentLat = parseFloat(formatted[0]);
-                    currentLon = parseFloat(formatted[1]);
+                    currentLat = e.latlng.lat;
+                    currentLon = e.latlng.lng;
                     originalLat = currentLat;
                     originalLon = currentLon;
-
-                    var m = new L.marker([currentLat, currentLon]);
-                    m.on("click", function () {
-                        currentLat = originalLat;
-                        currentLon = originalLon;
-
-                        analyzeLocation(originalLat, originalLon);
-                    });
-
-                    markers.push(m);
-                    map.addLayer(m);
+                    placePin(currentLat, currentLon);
                     canPin = false;
-
-                    document.getElementById("map").classList.add("invisible");
+                    document.getElementById("map-wrap").classList.add("invisible");
                     document.getElementById("parameter-form").classList.remove("invisible");
                 }
             }
 
-            async function submitted() {
-                document.getElementById("map").classList.remove("invisible");
-                document.getElementById("parameter-form").classList.add("invisible");
+            function placePin(lat, lon) {
+                markers.forEach(m => map.removeLayer(m));
+                markers = [];
+                var m = new L.marker([lat, lon]);
+                m.on("click", function () {
+                    currentLat = originalLat;
+                    currentLon = originalLon;
+                    analyzeLocation(originalLat, originalLon);
+                });
+                markers.push(m);
+                map.addLayer(m);
+            }
 
-                var itLoad = parseInt(document.querySelector('input[name="it-load"]:checked').value);
-                var cooling = document.querySelector('input[name="cooling"]:checked').value;
-                var powerSource = document.querySelector('input[name="power-source"]:checked').value;
-                var workload = document.querySelector('input[name="workload"]:checked').value;
+            async function submitted() {
+                document.getElementById("map-wrap").classList.remove("invisible");
+                document.getElementById("parameter-form").classList.add("invisible");
+                map.invalidateSize();
 
                 currentParams = {
                     lat: currentLat,
                     lon: currentLon,
-                    mw: itLoad,
-                    cooling: cooling,
-                    power: powerSource,
-                    workload: workload
+                    mw: parseInt(document.querySelector('input[name="it-load"]:checked').value),
+                    cooling: document.querySelector('input[name="cooling"]:checked').value,
+                    power: document.querySelector('input[name="power-source"]:checked').value,
+                    workload: document.querySelector('input[name="workload"]:checked').value
                 };
-
                 await analyzeLocation(currentLat, currentLon);
             }
 
             function resetMap() {
                 canPin = true;
-                for (i=0; i<markers.length; i++) {
-                    map.removeLayer(markers[i]);
-                }
+                markers.forEach(m => map.removeLayer(m));
+                markers = [];
+                betterMarkers.forEach(m => map.removeLayer(m));
+                betterMarkers = [];
+                if (contextLayer) { map.removeLayer(contextLayer); contextLayer = null; }
+                currentParams = null;
+                currentReport = null;
+                chatHistory = [];
+                document.getElementById('chat-log').innerHTML = '';
+                setText('site-label', 'Click the map to place a data center');
             }
 
             function switchTab(tabNumber) {
-                document.querySelectorAll(".tab").forEach(tab => {
-                    tab.classList.remove("active");
-                });
-
-                document.querySelectorAll(".tab-panel").forEach(panel => {
-                    panel.classList.remove("active");
-                });
-
+                document.querySelectorAll(".tab").forEach(tab => tab.classList.remove("active"));
+                document.querySelectorAll(".tab-panel").forEach(panel => panel.classList.remove("active"));
                 document.querySelectorAll(".tab")[tabNumber - 1].classList.add("active");
                 document.getElementById(`tab-${tabNumber}`).classList.add("active");
             }
 
+            // ------------------------------------------------------ better spots
             async function findBetterSpot() {
-                if (!currentParams) {
-                    alert("Please select a location first.");
-                    return;
-                }
-
-                // Remove old suggestion pins
+                if (!currentParams) { toast("Please select a location first."); return; }
                 betterMarkers.forEach(marker => map.removeLayer(marker));
                 betterMarkers = [];
+                showLoading(true, 'Searching within 50 km...');
+                try {
+                    const data = await api('/api/suggest', { ...currentParams, radius_km: 50, n: 3 });
+                    drawSuggestions(data);
+                } catch (err) {
+                    toast('Could not find better spots: ' + err.message);
+                } finally {
+                    showLoading(false);
+                }
+            }
 
-                const response = await fetch(
-                    'https://sitesense-api.onrender.com/api/suggest',
-                    {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json"
-                        },
-                        body: JSON.stringify({
-                            ...currentParams,
-                            radius_km: 50,
-                            n: 3
-                        })
-                    }
-                );
-
-                const data = await response.json();
-
-                data.candidates.forEach((candidate, index) => {
-                    const marker = L.circleMarker(
-                        [candidate.lat, candidate.lon],
-                        {
-                            radius: 10,
-                            color: "#00ffff",
-                            fillColor: "#00ffff",
-                            fillOpacity: 0.25,
-                            weight: 3
-                        }
-                    );
-
-                    marker.bindTooltip(
-                        `Better Spot #${candidate.rank}<br>${candidate.label}`,
-                        { direction: "top" }
-                    );
-
-                    marker.on("click", function () {
-                        showCandidate(candidate);
+            function drawSuggestions(data) {
+                betterMarkers.forEach(marker => map.removeLayer(marker));
+                betterMarkers = [];
+                if (!data.candidates || !data.candidates.length) { toast('No better spots found nearby (search works inside North Carolina).'); return; }
+                const pts = [[currentLat, currentLon]];
+                data.candidates.forEach(candidate => {
+                    const marker = L.circleMarker([candidate.lat, candidate.lon], {
+                        radius: 10, color: "#00ffff", fillColor: "#00ffff", fillOpacity: 0.25, weight: 3
                     });
-
+                    marker.bindTooltip(`Better Spot #${candidate.rank}<br>${candidate.label}<br>${candidate.distance_km} km away<br>${candidate.reason}`, { direction: "top" });
+                    marker.on("click", () => showCandidate(candidate));
                     marker.addTo(map);
                     betterMarkers.push(marker);
+                    pts.push([candidate.lat, candidate.lon]);
                 });
+                map.fitBounds(pts, { padding: [40, 40], maxZoom: 11 });
             }
 
             function showCandidate(candidate) {
-                document.getElementById("suit").textContent =
-                    candidate.scores.suitability;
-
-                document.getElementById("burd").textContent =
-                    candidate.scores.burden;
-
-                // Show the candidate's location as the current location
                 currentLat = candidate.lat;
                 currentLon = candidate.lon;
-
-                // Candidate data returned by /suggest is primarily scores/deltas.
-                // Fetch /analyze again so every tab contains the complete data.
                 analyzeLocation(candidate.lat, candidate.lon);
             }
 
-            async function analyzeLocation(lat, lon) {
-                const response = await fetch(
-                    'https://sitesense-api.onrender.com/api/analyze',
-                    {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json"
-                        },
-                        body: JSON.stringify({
-                            ...currentParams,
-                            lat: lat,
-                            lon: lon
-                        })
-                    }
-                );
-
-                const data = await response.json();
-
-                document.getElementById("suit").textContent =
-                    data.scores.suitability;
-                document.getElementById("burd").textContent =
-                    data.scores.burden;
-
-                document.getElementById("co2").textContent =
-                    data.carbon.tons_co2_yr;
-                document.getElementById("cars").textContent =
-                    data.carbon.cars_equiv;
-                document.getElementById("mwha").textContent =
-                    data.energy.annual_mwh;
-                document.getElementById("mwhhouse").textContent =
-                    data.energy.homes_equiv;
-
-                document.getElementById("onwater").textContent =
-                    data.water.onsite_m3_yr;
-                document.getElementById("offwater").textContent =
-                    data.water.offsite_m3_yr;
-                document.getElementById("houses").textContent =
-                    data.water.households_equiv;
-
-                document.getElementById("conjobs").textContent =
-                    data.economy.construction_jobs;
-                document.getElementById("permjobs").textContent =
-                    data.economy.permanent_jobs;
-                document.getElementById("unemp").textContent =
-                    data.economy.county_unemployed;
-                document.getElementById("unpc").textContent =
-                    data.economy.county_unemployment_pct;
-                document.getElementById("propt").textContent =
-                    data.economy.property_tax_usd_yr;
-
-                document.getElementById("1km").textContent =
-                    data.community.pop_1km;
-                document.getElementById("5km").textContent =
-                    data.community.pop_5km;
-                document.getElementById("medi").textContent =
-                    data.community.median_income_usd;
+            // ----------------------------------------------------------- analyze
+            async function analyzeLocation(lat, lon, overrides = {}) {
+                showLoading(true, 'Analyzing this site...');
+                try {
+                    const data = await api('/api/analyze', { ...currentParams, ...overrides, lat: lat, lon: lon });
+                    currentParams = { ...data.request };
+                    renderReport(data);
+                } catch (err) {
+                    toast(err.message.includes('contiguous US') ? 'SiteSense covers the contiguous US. Try a spot in North Carolina.' : 'Analysis failed: ' + err.message);
+                } finally {
+                    showLoading(false);
+                }
             }
 
-            window.onload = init
+            const QUADRANT = {
+                good: 'Good fit: workable site, low community burden',
+                tradeoff: 'Trade-off: workable site, but a heavy burden on neighbors',
+                poor: 'Weak site, but low burden',
+                avoid: 'Avoid: weak site and high burden'
+            };
+            const DROUGHT = { none: 'None', D0: 'D0 - abnormally dry', D1: 'D1 - moderate drought', D2: 'D2 - severe drought', D3: 'D3 - extreme drought', D4: 'D4 - exceptional drought' };
+            const FLAGS = { in_floodplain: 'Inside the 100-year floodplain', in_wetland: 'Mostly wetland', protected_area: 'Protected land',
+                            school_within_500m: 'A school is within 500 m', outside_nc: 'Outside North Carolina: coarse data only' };
+
+            function renderReport(data) {
+                currentReport = data;
+                const r = data.request;
+                setText('site-label', `${data.site.label || 'Selected site'} | ${fmt(r.mw)} MW, ${r.cooling} cooling, ${r.power.replace('_', ' + ')}${data.mock ? ' | SAMPLE DATA' : ''}`);
+
+                // Overview
+                setText('suit', fmt(data.scores.suitability));
+                setText('burd', fmt(data.scores.burden));
+                setText('quadrant', QUADRANT[data.scores.quadrant] || '');
+                document.getElementById('quadrant').className = 'verdict ' + data.scores.quadrant;
+                setText('pressure', data.scores.pressure == null ? 'n/a' : fmt(data.scores.pressure) + ' / 100');
+                setText('pressure-us', data.scores.pressure == null ? 'Model score available in North Carolina'
+                    : `How much this spot looks like where data centers get built (NC percentile; ${fmt(data.scores.pressure_us_pct)} nationally)`);
+                setList('pressure-drivers', (data.scores.pressure_drivers || []).map(d => `${d.direction === '+' ? '▲' : '▼'} ${d.label}`));
+                renderMitigations(data);
+
+                // Energy
+                setText('mwha', fmt(data.energy.annual_mwh) + ' MWh');
+                setText('mwhhouse', `as much as ${fmt(data.energy.homes_equiv)} homes` +
+                    (data.energy.county_homes_share_pct ? ` (${fmt(data.energy.county_homes_share_pct, 1)}% of the county's households)` : ''));
+                setText('co2', fmt(data.carbon.tons_co2_yr) + ' t');
+                setText('cars', `like ${fmt(data.carbon.cars_equiv)} cars on the road`);
+                setText('substation', data.energy.nearest_substation_km == null ? 'n/a'
+                    : `${fmt(data.energy.nearest_substation_km, 1)} km to a ${fmt(data.energy.nearest_substation_kv)} kV substation`);
+                setText('grid-carbon', `grid: ${data.energy.grid_region || ''}, ${fmt(data.carbon.grid_lb_per_mwh)} lb CO2/MWh`);
+                setText('powercost', money(data.energy.annual_cost_usd) + ' / yr');
+
+                // Water
+                setText('onwater', fmt(data.water.onsite_m3_yr) + ' m³');
+                setText('houses', `what ${fmt(data.water.households_equiv)} households use`);
+                setText('offwater', fmt(data.water.offsite_m3_yr) + ' m³');
+                setText('waterstress', data.water.aqueduct_label || 'n/a');
+                setText('drought', DROUGHT[data.water.drought_category] || 'n/a');
+
+                // Jobs
+                setText('conjobs', fmt(data.economy.construction_jobs));
+                setText('permjobs', fmt(data.economy.permanent_jobs));
+                setText('unemp', fmt(data.economy.county_unemployed));
+                setText('unpc', data.economy.county_unemployment_pct == null ? 'n/a' : fmt(data.economy.county_unemployment_pct, 1) + '%');
+                setText('propt', money(data.economy.property_tax_usd_yr));
+
+                // Community
+                const c = data.community;
+                setText('pops', `${fmt(c.pop_1km)} / ${fmt(c.pop_3km)} / ${fmt(c.pop_5km)}`);
+                setText('medi', c.median_income_usd == null ? 'n/a' : money(c.median_income_usd));
+                setText('svi', c.svi_pct == null ? 'n/a' : `${fmt(c.svi_pct)} / 100`);
+                setList('schools', (c.schools_1km || []).map(s => `${s.name} (${fmt(s.distance_km, 1)} km)`));
+                const la = data.land.converted_acres;
+                setText('landuse', `${fmt(data.land.acres)} acres: ${fmt(la.forest)} forest, ${fmt(la.cropland)} cropland, ` +
+                    `${fmt(la.pasture)} pasture, ${fmt(la.wetland)} wetland, ${fmt(la.developed)} already developed`);
+
+                // Risk
+                const h = data.hazards;
+                setText('flood', h.fema_zone == null ? 'n/a' : `Zone ${h.fema_zone}${h.in_floodplain ? ' (100-yr floodplain)' : ''}`);
+                setText('nri', h.nri_rating || 'n/a');
+                setText('nri-detail', `hurricane ${fmt(h.nri.hurricane)}, heat wave ${fmt(h.nri.heat_wave)}, flooding ${fmt(h.nri.riverine_flooding)}, tornado ${fmt(h.nri.tornado)} (US percentile)`);
+                setText('subsidence', h.subsidence_mm_yr == null ? 'No radar coverage here'
+                    : `${h.subsidence_mm_yr > 0 ? '+' : ''}${fmt(h.subsidence_mm_yr, 1)} mm/yr ${h.subsidence_mm_yr < -3 ? '(sinking)' : '(stable)'}`);
+                setText('coherence', h.nisar_coherence == null ? '' : `NISAR radar ground stability: ${fmt(h.nisar_coherence, 2)} (1 = very stable)`);
+                setList('flags', (data.land.flags || []).map(f => FLAGS[f] || f));
+
+                // Sources
+                const src = document.getElementById('sources');
+                src.innerHTML = 'Sources: ';
+                (data.sources || []).forEach((s, i) => {
+                    const a = document.createElement('a');
+                    a.href = s.url; a.target = '_blank'; a.rel = 'noopener'; a.textContent = s.name.split(' (')[0];
+                    if (i) src.appendChild(document.createTextNode(' · '));
+                    src.appendChild(a);
+                });
+
+                drawContext(data);
+            }
+
+            function renderMitigations(data) {
+                const box = document.getElementById('mitigations');
+                box.innerHTML = '';
+                const apply = { closed_loop_cooling: { cooling: 'liquid' }, onsite_solar: { power: 'grid_solar' },
+                                smaller_campus: { mw: Math.max(20, Math.round(data.request.mw / 2)) } };
+                (data.mitigations || []).forEach(m => {
+                    const d = m.deltas[0];
+                    const btn = document.createElement('button');
+                    btn.className = 'mitigation';
+                    const NAMES = { onsite_m3_yr: 'on-site water', offsite_m3_yr: 'power-plant water', tons_co2_yr: 'CO2',
+                                    annual_mwh: 'electricity', acres_converted: 'land', annual_cost_usd: 'power bill' };
+                    const key = d.field.split('.').pop();
+                    btn.textContent = `${m.label} → ${NAMES[key] || key.replace(/_/g, ' ')} ${d.pct_change > 0 ? '+' : ''}${fmt(d.pct_change)}%  (click to apply)`;
+                    btn.onclick = () => analyzeLocation(currentLat, currentLon, apply[m.key] || {});
+                    box.appendChild(btn);
+                });
+                if (!box.children.length) box.textContent = 'Already using the lowest-impact options.';
+            }
+
+            function drawContext(data) {
+                if (contextLayer) map.removeLayer(contextLayer);
+                contextLayer = L.layerGroup();
+                [1, 3, 5].forEach(km => L.circle([data.site.lat, data.site.lon], {
+                    radius: km * 1000, color: '#ffd166', weight: 1, fill: false, dashArray: '4 4', interactive: false
+                }).addTo(contextLayer));
+                (data.community.schools_1km || []).forEach(s =>
+                    L.circleMarker([s.lat, s.lon], { radius: 6, color: '#ef476f', fillOpacity: 0.8 }).bindTooltip(s.name).addTo(contextLayer));
+                contextLayer.addTo(map);
+                placePin(data.site.lat, data.site.lon);
+            }
+
+            // ------------------------------------------------------- map layers
+            const RAMPS = {
+                seq: ['#f7fcf5', '#c7e9c0', '#74c476', '#31a354', '#006d2c'],
+                bad: ['#fff5eb', '#fdd0a2', '#fd8d3c', '#d94801', '#7f2704'],
+                div: ['#b2182b', '#ef8a62', '#f7f7f7', '#67a9cf', '#2166ac']
+            };
+            const LAYER_RAMP = { suitability: 'seq', burden: 'bad', pressure: 'bad', water_stress: 'bad', subsidence: 'div', nisar_coherence: 'seq' };
+            var legend;
+
+            async function setupLayers(bases) {
+                const overlays = {};
+                let info = { layers: [] }, ov = { overlays: [] };
+                try { info = await api('/api/layers'); } catch (e) {}
+                try { ov = await api('/api/overlays'); } catch (e) {}
+                info.layers.forEach(l => {
+                    const group = L.layerGroup();
+                    group.on('add', () => loadHexLayer(l, group));
+                    overlays[l.label] = group;
+                });
+                ov.overlays.forEach(o => {
+                    overlays[o.label] = L.imageOverlay(o.url, o.bounds, { opacity: 0.75, attribution: 'NASA-ISRO NISAR (ASF DAAC)' });
+                });
+                L.control.layers(bases, overlays, { collapsed: true, position: 'topright' }).addTo(map);
+                legend = L.control({ position: 'bottomright' });
+                legend.onAdd = () => L.DomUtil.create('div', 'legend invisible');
+                legend.addTo(map);
+            }
+
+            async function loadHexLayer(info, group) {
+                if (group.getLayers().length) { showLegend(info); return; }
+                showLoading(true, `Loading ${info.label} (~29,000 hexes)...`);
+                try {
+                    const gj = await api('/api/layers/' + info.name);
+                    const ramp = RAMPS[LAYER_RAMP[info.name] || 'seq'];
+                    const lo = info.name === 'subsidence' ? -10 : info.min, hi = info.name === 'subsidence' ? 10 : info.max;
+                    const color = v => v == null ? 'transparent' : ramp[Math.max(0, Math.min(4, Math.floor((v - lo) / (hi - lo) * 5)))];
+                    L.geoJSON(gj, {
+                        renderer: L.canvas(), interactive: false,
+                        style: f => ({ stroke: false, fillColor: color(f.properties.value), fillOpacity: 0.55 })
+                    }).addTo(group);
+                    showLegend(info);
+                } catch (e) {
+                    toast('Could not load layer: ' + e.message);
+                } finally {
+                    showLoading(false);
+                }
+            }
+
+            function showLegend(info) {
+                const div = document.querySelector('.legend');
+                const ramp = RAMPS[LAYER_RAMP[info.name] || 'seq'];
+                const lo = info.name === 'subsidence' ? '-10 (sinking)' : info.min, hi = info.name === 'subsidence' ? '+10' : info.max;
+                div.innerHTML = `<b>${info.label}</b><br>` + ramp.map(c => `<i style="background:${c}"></i>`).join('') +
+                    `<br><span>${lo}</span><span style="float:right">${hi} ${info.unit.startsWith('score') ? '' : info.unit}</span>`;
+                div.classList.remove('invisible');
+            }
+
+            // -------------------------------------------------------------- chat
+            function toggleChat() {
+                document.getElementById('chat').classList.toggle('invisible');
+                document.getElementById('chat-toggle').classList.toggle('invisible');
+            }
+            function askChip(btn) {
+                document.getElementById('chat-input').value = btn.textContent;
+                sendChat();
+            }
+            function chatBubble(role, text) {
+                const div = document.createElement('div');
+                div.className = 'msg ' + role;
+                div.textContent = text;
+                const log = document.getElementById('chat-log');
+                log.appendChild(div);
+                log.scrollTop = log.scrollHeight;
+                return div;
+            }
+            const TOOL_TEXT = { move_site: 'Moving the site...', set_config: 'Changing the design...', find_better_sites: 'Searching for better sites...',
+                                geocode: 'Looking up the place...', compare: 'Comparing sites...' };
+
+            async function sendChat(ev) {
+                if (ev) ev.preventDefault();
+                const input = document.getElementById('chat-input');
+                const text = input.value.trim();
+                if (!text || chatBusy) return;
+                if (!currentReport) { toast('Place a data center on the map first, then ask about it.'); return; }
+                input.value = '';
+                chatBusy = true;
+                chatBubble('user', text);
+                chatHistory.push({ role: 'user', content: text });
+                const bubble = chatBubble('assistant', '...');
+                let answer = '';
+                try {
+                    const res = await fetch(API + '/api/chat', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
+                        body: JSON.stringify({ messages: chatHistory, report: currentReport, config: currentParams })
+                    });
+                    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).detail || res.statusText);
+                    const reader = res.body.getReader();
+                    const decoder = new TextDecoder();
+                    let buf = '';
+                    for (;;) {
+                        const { value, done } = await reader.read();
+                        if (done) break;
+                        buf += decoder.decode(value, { stream: true });
+                        let cut;
+                        while ((cut = buf.indexOf('\n\n')) !== -1) {
+                            const block = buf.slice(0, cut);
+                            buf = buf.slice(cut + 2);
+                            let event = 'message', dataStr = '';
+                            block.split('\n').forEach(line => {
+                                if (line.startsWith('event:')) event = line.slice(6).trim();
+                                else if (line.startsWith('data:')) dataStr += line.slice(5).trim();
+                            });
+                            if (!dataStr) continue;
+                            const d = JSON.parse(dataStr);
+                            if (event === 'token') { answer += d.text; bubble.textContent = answer; }
+                            else if (event === 'tool_call') { chatBubble('tool', TOOL_TEXT[d.name] || d.name); }
+                            else if (event === 'report') {
+                                currentLat = d.site.lat; currentLon = d.site.lon;
+                                currentParams = { ...d.request };
+                                renderReport(d);
+                                map.setView([d.site.lat, d.site.lon], Math.max(map.getZoom(), 10));
+                            }
+                            else if (event === 'suggestions') { drawSuggestions(d); }
+                            else if (event === 'error') { answer += (answer ? '\n' : '') + d.message; bubble.textContent = answer; }
+                            document.getElementById('chat-log').scrollTop = 1e9;
+                        }
+                    }
+                } catch (err) {
+                    answer = 'Sorry, the analyst is unavailable right now (' + err.message + ').';
+                    bubble.textContent = answer;
+                } finally {
+                    if (answer) chatHistory.push({ role: 'assistant', content: answer });
+                    chatBusy = false;
+                }
+            }
+
+            window.onload = init;
         </script>
     </body>
 </html>

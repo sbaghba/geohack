@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -31,6 +32,8 @@ app.add_middleware(
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
+# layer GeoJSON is ~7 MB raw, ~1 MB gzipped (Starlette skips text/event-stream, so chat streaming is unaffected)
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 errors.install(app)
 layers_svc.overlays_dir().mkdir(parents=True, exist_ok=True)
 app.mount("/static/overlays", StaticFiles(directory=str(layers_svc.overlays_dir())), name="overlays")
