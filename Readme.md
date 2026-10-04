@@ -50,12 +50,12 @@ Every number comes from a named, linked source, which the sidebar lists. A field
 - **Impact model** (`backend/app/impact.py`, constants in `reference.py`): PUE and water use by cooling type, EPA eGRID carbon intensity for the site's grid subregion, EIA price, NCDOR county tax rate, and jobs and capex per MW. Every assumption is in one file, with its source.
 - **Siting Pressure model** (`backend/scripts/pressure_model.py`):
   - **What it measures:** how much a place resembles where data centers already get built.
-  - **Training:** XGBoost on a GPU (A100) over 210,427 US H3 res-6 hexes, with 539 hexes containing an OpenStreetMap-mapped data center (a positive-unlabeled setup).
+  - **Training:** XGBoost on a GPU over 210,427 US H3 res-6 hexes, with 539 hexes containing an OpenStreetMap-mapped data center (a positive-unlabeled setup).
   - **Features:** distance to the grid, population within 10 and 50 km, FEMA hazards and social vulnerability, water stress, state power price, grid carbon. Location and distance to existing data centers are deliberately left out.
   - **Validation:** whole states held out (GroupKFold by state). AUC 0.92, and the top 10% of hexes capture 86% of data-center hexes.
   - **Output:** a percentile within NC and nationally, with the top 3 reasons from TreeSHAP.
 - **Satellite radar:**
-  - **OPERA DISP-S1** (Sentinel-1): local ground velocity for 2021-2025, relative to the surrounding ~12 km. Covers northeast NC so far.
+  - **OPERA DISP-S1** (Sentinel-1): local ground velocity for 2021-2025, relative to the surrounding ~12 km. Covers most of NC.
   - **NASA-ISRO NISAR** L2: interferometric coherence (ground stability) for about two-thirds of NC, plus an L-band HV backscatter image clipped to NC.
 - **Chat.** Gemini streams over server-sent events. Its tool calls run on the server and update the map, so "move it to Smithfield" really moves the site and reruns the report.
 - **API contract.** `contract/schemas.py` (Pydantic) is the single source of truth (v1.4.0). The frontend was built against mock JSON generated from the same schemas.
@@ -82,7 +82,7 @@ Every number comes from a named, linked source, which the sidebar lists. A field
 
 - Impact numbers are **planning-level estimates** from published averages (PUE, water use, jobs per MW), not a site engineering study.
 - OpenStreetMap does not map every data center or substation.
-- Ground-motion coverage is partial: OPERA covers northeast NC and NISAR about two-thirds of NC.
+- Ground-motion coverage is partial: OPERA covers most of NC and NISAR about two-thirds of NC.
 - Full detail is for North Carolina. Elsewhere in the lower 48 you get a coarse report (state grid carbon and price, FEMA flood zone, drought, protected land).
 - The Siting Pressure score is relative ("resembles"), not a probability that something will be built.
 
@@ -104,11 +104,46 @@ To rebuild the data from scratch (on a machine with a GPU for the pressure model
 
 ## Repository layout
 
+## Repository layout
+
 ```
-contract/    API schemas (single source of truth), mock JSON, API doc
-backend/     FastAPI app, ETL scripts, pressure model, tests, prebuilt data (grid, points, layers, overlays, model metrics)
-frontend/    index.html + style.css (Leaflet)
-Dockerfile, render.yaml   deployment
+geohack/
+├── frontend/                  the website (static, no build step)
+│   ├── index.html             map, report tabs, layers, AI chat (Leaflet + vanilla JS)
+│   ├── style.css
+│   └── icon.png
+│
+├── backend/                   FastAPI service (deployed on Render)
+│   ├── app/
+│   │   ├── main.py            routes: /api/analyze, /suggest, /chat (SSE), /layers, /overlays, /model, /health
+│   │   ├── real.py            builds a report from the grid + live lookups; Find Better Spots
+│   │   ├── impact.py          energy, water, carbon, jobs and tax formulas; mitigations
+│   │   ├── reference.py       every assumption and constant, with its source
+│   │   ├── live.py            live lookups: FEMA flood zone, US Drought Monitor, USGS PAD-US
+│   │   ├── store.py           loads the prebuilt grid and point layers; spatial lookups
+│   │   ├── llm_tools.py       Gemini tool definitions + analyst system prompt
+│   │   └── services/          analyze, layers, chat (Gemini function-calling loop)
+│   ├── scripts/               offline pipeline
+│   │   ├── download_data.py   NISAR, OPERA and WorldCover downloads (NASA Earthdata / ASF)
+│   │   ├── build_grid.py      NC H3 grid: Census, FEMA NRI, Aqueduct, land cover, OSM -> scores + map layers
+│   │   ├── process_insar.py   OPERA ground motion, NISAR coherence, NISAR radar image
+│   │   └── pressure_model.py  Siting Pressure model: US features -> GPU XGBoost -> NC predictions
+│   ├── data/                  prebuilt outputs the API serves (committed, ~50 MB)
+│   │   ├── grid/              29,352 hexes x 46 columns (parquet) + county and state tables
+│   │   ├── points/            substations, lines, schools, hospitals, data centers (OSM)
+│   │   ├── layers/            map layers as GeoJSON
+│   │   ├── overlays/          NISAR L-band radar image
+│   │   └── models/            pressure model metrics (model card)
+│   └── tests/                 18 pytest tests (API contract, real-data path, Gemini loop)
+│
+├── contract/                  API contract shared by frontend and backend
+│   ├── schemas.py             Pydantic models: the single source of truth (v1.4.0)
+│   ├── CONTRACT.md            human-readable API doc
+│   ├── mock/                  sample responses generated from the schemas
+│   └── api.js, stub_server.py helpers used to build the frontend before the backend existed
+│
+├── Dockerfile, render.yaml    deployment (Render Docker blueprint)
+└── Readme.md
 ```
 
 ## AI usage disclosure
@@ -118,11 +153,11 @@ As the hackathon rules require, here is how we used AI tools:
 - **In the product:** Google **Gemini** (`gemini-3.8-flash`, via the Gemini API) powers the AI analyst chat. It is instructed to use only numbers from the report and to cite their sources, and it calls our own backend tools to move or resize the site.
 - **During development:** we used **Claude (Anthropic, Claude Opus 5.5, in Cowork)** as a coding assistant. It helped:
   - draft the project plan, task split and API contract
-  - write most of the backend: the FastAPI service, impact model, ETL pipeline, radar processing, Siting Pressure model training scripts and tests
+  - write parts of the backend: the FastAPI service, impact model, ETL pipeline, radar processing, Siting Pressure model training scripts and some sample tests
   - add features and bug fixes to the frontend (chat panel, map layers, Risk tab, number formatting, loading and error states)
-  - write this README
+  - write a sample README
 
-  We chose the data sources and ran the pipelines on our own hardware (including the A100 training). We checked outputs by hand: for example, the Wake County tax estimate was recomputed from the NCDOR rate, and the radar products were inspected and fixed when the first ground-motion rates were unrealistic. We take responsibility for the code and the numbers.
+  We chose the data sources and ran the pipelines on our own hardware. We checked outputs by hand: for example, the Wake County tax estimate was recomputed from the NCDOR rate, and the radar products were inspected and fixed when the first ground-motion rates were unrealistic. We take responsibility for the code and the numbers.
 - **Frontend:** Zan built the original interface by hand (map, parameter form, tabs, layout and styling). Extra styling and certain features (tab switching and Find Better Spots button) were done with ChatGPT.
 
 ## License
