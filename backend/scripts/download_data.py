@@ -161,16 +161,21 @@ def cmd_opera(a):
     by_frame = defaultdict(list)
     for p in r:
         by_frame[_frame(p)].append(p)
-    print(f"{len(r)} {OPERA_DISP} granules over {a.bbox}, {len(by_frame)} frames")
-    for f, ps in sorted(by_frame.items(), key=lambda kv: -len(kv[1])):
+    # frames whose footprint contains the demo point (Raleigh/Clayton); the bbox alone also matches frames that only clip a corner
+    covering = {_frame(p) for p in search(OPERA_DISP, a.bbox, max_results=500, start=a.start, end=a.end, point=DEMO_POINT)}
+    print(f"{len(r)} {OPERA_DISP} granules over {a.bbox}, {len(by_frame)} frames; covering {DEMO_POINT}: {sorted(covering)}")
+    for f, ps in sorted(by_frame.items(), key=lambda kv: (kv[0] not in covering, -len(kv[1]))):
         ds = sorted(str(p.properties.get("startTime"))[:10] for p in ps)
         mb = sum(size_mb(p.properties) for p in ps)
-        print(f"  frame {f}: {len(ps):4d} granules  {ds[0]} .. {ds[-1]}  ~{mb / 1e3:.1f} GB total")
+        tag = "  <- covers demo point" if f in covering else ""
+        print(f"  frame {f}: {len(ps):4d} granules  {ds[0]} .. {ds[-1]}  ~{mb / 1e3:.1f} GB total{tag}")
     if a.list or not r:
         if not a.list and not r:
             print("nothing found")
         return
-    frame = a.frame or max(by_frame, key=lambda k: len(by_frame[k]))
+    pool = [f for f in by_frame if f in covering] or list(by_frame)
+    frame = a.frame or max(pool, key=lambda k: len(by_frame[k]))
+    print(f"using frame {frame}")
     ps = sorted(by_frame[frame], key=lambda p: str(p.properties.get("startTime")))
     # evenly spaced through time so a velocity fit has a long baseline
     step = max(1, math.ceil(len(ps) / a.max))

@@ -4,6 +4,7 @@
         <meta charset="utf-8"/>
         <meta name="viewport" content="width=device-width, initial-scale=1"/>
         <title>Does Your Data Center Fit?</title>
+        <link rel="icon" href="icon.png">
         <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
         <link rel="stylesheet" href="style.css"/>
         <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
@@ -163,7 +164,7 @@
                             <h2>Natural hazard risk (FEMA)</h2>
                             <p class="big" id="nri">-</p>
                             <p class="note" id="nri-detail"></p>
-                            <h2>Ground movement (satellite radar)</h2>
+                            <h2>Ground sinking rate (Sentinel-1 radar, OPERA)</h2>
                             <p class="big" id="subsidence">-</p>
                             <p class="note" id="coherence"></p>
                             <h2>Protected land (within 1 km)</h2>
@@ -507,9 +508,9 @@
                 setText('flood', h.fema_zone == null ? 'n/a' : `Zone ${h.fema_zone}${h.in_floodplain ? ' (100-yr floodplain)' : ''}`);
                 setText('nri', h.nri_rating || 'n/a');
                 setText('nri-detail', `hurricane ${fmt(h.nri.hurricane)}, heat wave ${fmt(h.nri.heat_wave)}, flooding ${fmt(h.nri.riverine_flooding)}, tornado ${fmt(h.nri.tornado)} (US percentile)`);
-                setText('subsidence', h.subsidence_mm_yr == null ? 'Not measured here yet'
+                setText('subsidence', h.subsidence_mm_yr == null ? 'Not processed here yet'
                     : `${h.subsidence_mm_yr > 0 ? '+' : ''}${fmt(h.subsidence_mm_yr, 1)} mm/yr ${h.subsidence_mm_yr < -3 ? '(sinking)' : '(stable)'}`);
-                setText('coherence', h.nisar_coherence == null ? (h.subsidence_mm_yr == null ? 'Sentinel-1 ground motion is processed for northeast NC so far; NISAR stability for about two-thirds of NC.' : '') : `NISAR radar ground stability: ${fmt(h.nisar_coherence, 2)} (1 = very stable)`);
+                setText('coherence', (h.nisar_coherence == null ? 'NISAR ground stability: no coverage here' : `NISAR L-band ground stability: ${fmt(h.nisar_coherence, 2)} (1 = unchanging ground/buildings, 0 = fields, forest, water)`) + (h.subsidence_mm_yr == null ? '. The sinking rate needs a multi-year Sentinel-1 time series, processed for part of NC so far.' : ''));
                 setList('protected', (data.land.protected_areas || []).map(a =>
                     `${a.contains_site ? '⚠ Site is inside ' : ''}${a.name}${a.designation ? ' (' + a.designation + ')' : ''}`));
                 setList('flags', (data.land.flags || []).map(f => FLAGS[f] || f));

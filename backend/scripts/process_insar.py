@@ -203,6 +203,25 @@ def step_opera():
     files = sorted((RAW / "opera").rglob("*.nc"))
     if not files:
         raise RuntimeError("no OPERA DISP-S1 files in data/raw/opera")
+    frames: dict[str, list] = {}
+    for fp in files:                                   # download_data.py puts each frame in data/raw/opera/F<frame>/
+        frames.setdefault(fp.parent.name, []).append(fp)
+    outs = []
+    for name, fs in sorted(frames.items()):
+        log(f"OPERA frame {name}: {len(fs)} files")
+        try:
+            outs.append(_opera_frame(fs))
+        except RuntimeError as e:
+            log(f"  frame {name} skipped: {e}")
+    if not outs:
+        raise RuntimeError("no usable OPERA frames")
+    out = pd.concat(outs).groupby("hex_id", as_index=False).mean()   # overlapping frames: average per hex
+    out.to_parquet(INTERIM / "insar_opera.parquet")
+    log(f"OPERA: {len(out):,} hexes with a velocity from {len(outs)} frame(s)")
+    return out
+
+
+def _opera_frame(files):
     rates, weights, cohs, grid = [], [], [], None
     for fp in files:
         m = DATE_PAIR.search(fp.name)
@@ -262,8 +281,7 @@ def step_opera():
     if cohs:
         out = out.merge(to_hex(np.nanmean(np.stack(cohs), 0), x, y, crs, stride).rename(columns={"value": "opera_coherence"}),
                         on="hex_id", how="left")
-    out.to_parquet(INTERIM / "insar_opera.parquet")
-    log(f"OPERA: {len(out):,} hexes with a velocity")
+    log(f"  {len(out):,} hexes")
     return out
 
 

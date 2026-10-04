@@ -38,7 +38,7 @@ Every number comes from a named, linked source, which the sidebar lists. A field
    map, tabs, layers, chat            /api/analyze  /api/suggest  /api/chat (SSE)
                                       /api/layers   /api/overlays /api/model
                                          │
-          prebuilt NC grid (H3 res 7, 29,352 hexes) + point layers  ◄── ETL on an A100 server
+          prebuilt NC grid (H3 res 7, 29,352 hexes) + point layers
           live lookups: FEMA flood zone, US Drought Monitor, USGS PAD-US
           Gemini (function calling: geocode, move_site, set_config, find_better_sites, compare)
 ```
@@ -123,7 +123,7 @@ As the hackathon rules require, here is how we used AI tools:
   - write this README
 
   We chose the data sources and ran the pipelines on our own hardware (including the A100 training). We checked outputs by hand: for example, the Wake County tax estimate was recomputed from the NCDOR rate, and the radar products were inspected and fixed when the first ground-motion rates were unrealistic. We take responsibility for the code and the numbers.
-- **Frontend:** Zan built the original interface by hand (map, parameter form, tabs, layout and styling). <!-- Zan: add any AI tools you used here, or delete this comment. -->
+- **Frontend:** Zan built the original interface by hand (map, parameter form, tabs, layout and styling). Extra styling and certain features (tab switching and Find Better Spots button) were done with ChatGPT.
 
 ## License
 
