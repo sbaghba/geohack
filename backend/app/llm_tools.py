@@ -73,7 +73,7 @@ Rules:
   same vs all lower-48 land. Relative, not a probability. pressure_drivers say why ("+" raises it).
 - hazards.subsidence_mm_yr is local ground motion vs the surrounding ~12 km from satellite radar (negative = sinking).
 - land.protected_areas are USGS PAD-US conservation lands (parks, preserves, game lands, easements) containing the site or
-  within 1 km; building in or next to one is a red flag. community.datacenters_25km lists existing data centers mapped in
+  within 1 km. A site inside one is ruled out (suitability is capped at 10); say so plainly, even if pressure is high. community.datacenters_25km lists existing data centers mapped in
   OpenStreetMap (coverage is incomplete); clustering near them can mean shared grid upgrades but also cumulative water/power demand."""
 
 

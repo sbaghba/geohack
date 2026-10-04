@@ -106,3 +106,4 @@ DATACENTER_NAMES = {
     "w186515922": "Google data center (Lenoir)", "w844372538": "Google data center (Lenoir)",
 }
 DATACENTER_CAMPUS_KM = 1.0   # OSM often maps each building; points closer than this are one campus
+PROTECTED_SUIT_CAP = 10.0   # a site inside PAD-US protected land is not buildable: suitability capped, verdict poor/avoid

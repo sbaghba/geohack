@@ -16,7 +16,7 @@ from .contract import (
 )
 from .errors import out_of_coverage
 from .impact import metrics, mitigations
-from .live import point_lookups
+from .live import in_protected, point_lookups
 from .store import haversine_km, store
 
 PIN_HEX_SPACING_KM = 2.4  # center-to-center distance of res-7 hexes
@@ -171,13 +171,17 @@ def report(req: AnalyzeRequest) -> Report:
     share = lambda k: round(acres * (_f(row.get(f"lc_{k}")) or 0), 1)  # noqa: E731
     pop_d, hh_d = _f(row.get("pop_dens_km2")), _f(row.get("hh_dens_km2"))
     s, b = _f(row.get("suitability")) or 50.0, _f(row.get("burden")) or 50.0
+    quadrant = row.get("quadrant") or "tradeoff"
+    if any(p.contains_site for p in protected):          # protected land is a hard constraint
+        s = min(s, R.PROTECTED_SUIT_CAP)
+        quadrant = "avoid" if b >= 50 else "poor"
 
     rep = Report(
         generated_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
         request=req,
         site=Site(lat=req.lat, lon=req.lon, hex_id=hex_id, label=f"{county} County, NC" if county else "North Carolina",
                   county=county, state="NC", tier=1),
-        scores=Scores(suitability=round(s, 1), burden=round(b, 1), quadrant=row.get("quadrant") or "tradeoff",
+        scores=Scores(suitability=round(s, 1), burden=round(b, 1), quadrant=quadrant,
                       pressure=_f(row.get("pressure")), pressure_us_pct=_f(row.get("pressure_us_pct")),
                       pressure_drivers=_drivers(row)),
         energy=Energy(pue=m["pue"], annual_mwh=round(m["mwh"]), peak_grid_mw=round(m["peak_mw"], 1), homes_equiv=round(m["homes"]),
@@ -282,6 +286,8 @@ def suggest(req: SuggestRequest) -> SuggestResponse:
     picked = []
     for hid, r in df.iterrows():
         if r.gain <= 0 or any(haversine_km(r.lat, r.lon, p[1].lat, p[1].lon) < 8 for p in picked):
+            continue
+        if in_protected(float(r.lat), float(r.lon)):     # never suggest a park / preserve / easement
             continue
         picked.append((hid, r))
         if len(picked) == req.n:

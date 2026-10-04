@@ -86,6 +86,7 @@ def real_data(tmp_path, monkeypatch):
     park = {"name": "Test State Park", "designation": "State Park", "manager": None, "gap_status": 2, "acres": 5000.0}
     monkeypatch.setattr(real, "point_lookups", lambda lat, lon: ((("AE", True) if lat > 35.75 else ("X", False)), "D1",
                                                                [{**park, "contains_site": lat > 35.75}] if lon < -78.5 else []))
+    monkeypatch.setattr(real, "in_protected", lambda lat, lon: False)
     real._DC_CACHE.clear()
     yield tmp_path
     real._DC_CACHE.clear()
@@ -156,5 +157,15 @@ def test_datacenters_and_protected(real_data):
     assert r.field_sources["land.protected_areas"] == "padus" and "padus" in {s.key for s in r.sources}
     inside = Report.model_validate(c.post("/api/analyze", json={"lat": 35.80, "lon": -78.55}).json())
     assert "protected_area" in inside.land.flags and inside.land.protected_areas[0].contains_site
+    assert inside.scores.suitability <= 10 and inside.scores.quadrant in ("poor", "avoid")
     clear = Report.model_validate(c.post("/api/analyze", json={"lat": CENTER[0], "lon": -78.45}).json())
     assert clear.land.protected_areas == [] and not {"protected_area", "protected_area_within_1km"} & set(clear.land.flags)
+
+
+def test_suggest_skips_protected(real_data, monkeypatch):
+    c = TestClient(app)
+    body = {"lat": CENTER[0], "lon": CENTER[1], "radius_km": 25}
+    first = SuggestResponse.model_validate(c.post("/api/suggest", json=body).json()).candidates[0]
+    monkeypatch.setattr(real, "in_protected", lambda lat, lon: abs(lat - first.lat) < 1e-4 and abs(lon - first.lon) < 1e-4)
+    again = SuggestResponse.model_validate(c.post("/api/suggest", json=body).json()).candidates
+    assert all((a.lat, a.lon) != (first.lat, first.lon) for a in again)

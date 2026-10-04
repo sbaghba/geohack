@@ -439,11 +439,15 @@
                 // Overview
                 setText('suit', fmt(data.scores.suitability));
                 setText('burd', fmt(data.scores.burden));
-                setText('quadrant', QUADRANT[data.scores.quadrant] || '');
-                document.getElementById('quadrant').className = 'verdict ' + data.scores.quadrant;
-                setText('pressure', data.scores.pressure == null ? 'n/a' : fmt(data.scores.pressure) + ' / 100');
-                setText('pressure-us', data.scores.pressure == null ? 'Model score available in North Carolina'
-                    : `How much this spot looks like where data centers get built (NC percentile; ${fmt(data.scores.pressure_us_pct)} nationally)`);
+                const inPark = (data.land.protected_areas || []).find(a => a.contains_site);
+                setText('quadrant', inPark ? `Avoid: inside protected land (${inPark.name})` : (QUADRANT[data.scores.quadrant] || ''));
+                document.getElementById('quadrant').className = 'verdict ' + (inPark ? 'avoid' : data.scores.quadrant);
+                const p = data.scores.pressure, pus = data.scores.pressure_us_pct;
+                const top = v => v >= 50 ? `top ${Math.max(1, Math.round(100 - v))}%` : `bottom ${Math.max(1, Math.round(v))}%`;
+                setText('pressure', p == null ? 'n/a' : (p >= 50 ? 'Top ' : 'Bottom ') + top(p).split(' ')[1] + ' in NC');
+                setText('pressure-us', p == null ? 'Model score available in North Carolina'
+                    : `How much this spot resembles places where data centers already get built (${top(pus)} of the lower 48)` +
+                      (inPark && p >= 80 ? '. Developers would want this spot, but it is protected land.' : ''));
                 setList('pressure-drivers', (data.scores.pressure_drivers || []).map(d => `${d.direction === '+' ? '▲' : '▼'} ${d.label}`));
                 renderMitigations(data);
 

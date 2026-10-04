@@ -105,6 +105,20 @@ def protected_areas(lat: float, lon: float) -> list[dict] | None:
         return None
 
 
+@lru_cache(maxsize=4096)
+def _padus_inside(lat4: float, lon4: float) -> bool:
+    return bool(_padus_query(lon4, lat4, 0))
+
+
+def in_protected(lat: float, lon: float) -> bool | None:
+    """Is the point inside PAD-US (GAP 1-3) land? None if the service is unavailable."""
+    try:
+        return _padus_inside(round(lat, 4), round(lon, 4))
+    except Exception as e:
+        log.warning("PAD-US lookup failed: %s", e)
+        return None
+
+
 def point_lookups(lat: float, lon: float):
     """FEMA flood zone, drought category and PAD-US protected areas in parallel (each capped by LIVE_TIMEOUT_S).
     Returns ((zone, in_sfha), drought, protected_areas)."""
