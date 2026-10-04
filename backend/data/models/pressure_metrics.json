@@ -1,0 +1,182 @@
+{
+  "trained_at": "2026-10-04T01:29:42",
+  "device": "cuda",
+  "hexes": 210427,
+  "positives": 539,
+  "features": [
+    "dist_sub_km",
+    "dist_line_km",
+    "log_pop_10km",
+    "log_pop_50km",
+    "nri_overall",
+    "nri_hurricane",
+    "nri_tornado",
+    "nri_heat_wave",
+    "nri_inland_flood",
+    "svi",
+    "bws_score",
+    "price_cents",
+    "egrid_lb"
+  ],
+  "cv": "GroupKFold(5) by state",
+  "auc": 0.921,
+  "average_precision": 0.065,
+  "base_rate": 0.0026,
+  "capture_at_10pct": 0.855,
+  "folds": [
+    {
+      "fold": 0,
+      "states": [
+        "AL",
+        "IN",
+        "MA",
+        "NC",
+        "ND",
+        "RI",
+        "TN",
+        "TX",
+        "UT"
+      ],
+      "auc": 0.952,
+      "positives": 122,
+      "trees": 53
+    },
+    {
+      "fold": 1,
+      "states": [
+        "DC",
+        "DE",
+        "FL",
+        "IL",
+        "MT",
+        "NY",
+        "PA",
+        "SC",
+        "SD",
+        "VT",
+        "WY"
+      ],
+      "auc": 0.936,
+      "positives": 77,
+      "trees": 50
+    },
+    {
+      "fold": 2,
+      "states": [
+        "AR",
+        "CA",
+        "CO",
+        "IA",
+        "KS",
+        "ME",
+        "MO",
+        "NH",
+        "NJ",
+        "VA"
+      ],
+      "auc": 0.958,
+      "positives": 138,
+      "trees": 35
+    },
+    {
+      "fold": 3,
+      "states": [
+        "AZ",
+        "GA",
+        "ID",
+        "MS",
+        "NE",
+        "NM",
+        "OH",
+        "WI",
+        "WV"
+      ],
+      "auc": 0.973,
+      "positives": 102,
+      "trees": 7
+    },
+    {
+      "fold": 4,
+      "states": [
+        "CT",
+        "KY",
+        "LA",
+        "MD",
+        "MI",
+        "MN",
+        "NV",
+        "OK",
+        "OR",
+        "WA"
+      ],
+      "auc": 0.966,
+      "positives": 100,
+      "trees": 22
+    }
+  ],
+  "capture_by_state": [
+    {
+      "state": "TX",
+      "dc": 57,
+      "hit": 49,
+      "capture": 0.86
+    },
+    {
+      "state": "CA",
+      "dc": 37,
+      "hit": 35,
+      "capture": 0.95
+    },
+    {
+      "state": "VA",
+      "dc": 35,
+      "hit": 29,
+      "capture": 0.83
+    },
+    {
+      "state": "OH",
+      "dc": 26,
+      "hit": 26,
+      "capture": 1.0
+    },
+    {
+      "state": "NJ",
+      "dc": 25,
+      "hit": 23,
+      "capture": 0.92
+    },
+    {
+      "state": "OR",
+      "dc": 25,
+      "hit": 19,
+      "capture": 0.76
+    },
+    {
+      "state": "AZ",
+      "dc": 21,
+      "hit": 20,
+      "capture": 0.95
+    },
+    {
+      "state": "GA",
+      "dc": 18,
+      "hit": 18,
+      "capture": 1.0
+    }
+  ],
+  "importance_gain": {
+    "log_pop_10km": 8500.32,
+    "dist_sub_km": 3161.59,
+    "log_pop_50km": 1121.08,
+    "nri_tornado": 616.06,
+    "svi": 578.16,
+    "dist_line_km": 538.82,
+    "nri_inland_flood": 525.69,
+    "nri_hurricane": 511.25,
+    "bws_score": 506.66,
+    "egrid_lb": 491.08,
+    "price_cents": 491.06,
+    "nri_heat_wave": 479.92,
+    "nri_overall": 459.18
+  }
+}

@@ -1,5 +1,5 @@
 {
-  "built_at": "2026-10-03T22:11:38+00:00",
+  "built_at": "2026-10-04T05:33:09+00:00",
   "rows": 29352,
   "res": 7,
   "columns": [
@@ -38,6 +38,9 @@
     "dist_line_km",
     "line_kv",
     "schools_2km",
+    "pressure",
+    "pressure_us_pct",
+    "pressure_drivers",
     "pop_dens_km2",
     "hh_dens_km2",
     "pop_3km",
@@ -53,6 +56,7 @@
     "insar",
     "landcover",
     "nri",
-    "osm"
+    "osm",
+    "pressure"
   ]
 }
