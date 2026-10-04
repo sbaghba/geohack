@@ -5,19 +5,19 @@
     "url": "/static/overlays/nisar_hv.png",
     "bounds": [
       [
-        33.03632,
-        -81.35662
+        33.85214,
+        -81.03023
       ],
       [
-        36.22595,
-        -77.42619
+        35.96518,
+        -77.79387
       ]
     ],
     "date": "2026-10-01",
     "source": "nisar",
     "legend": {
-      "low": "-26 dB (smooth: water, pavement, bare)",
-      "high": "-6 dB (forest, structures)"
+      "low": "-20 dB smooth: water, pavement, bare fields",
+      "high": "-9 dB rough: forest, buildings"
     }
   }
 ]

@@ -553,7 +553,7 @@
                     const img = L.imageOverlay(o.url, o.bounds, { opacity: 0.75, attribution: 'NASA-ISRO NISAR (ASF DAAC)' });
                     img.on('add', () => {
                         map.fitBounds(o.bounds);
-                        toast('NISAR L-band radar: bright green = forest/structures, dark = water, pavement, bare fields. Covers southeastern NC.');
+                        toast('NISAR L-band radar (one satellite pass, south-central NC): dark green = forest/buildings, light green/tan = fields, navy = water and smooth surfaces.');
                     });
                     overlays[o.label] = img;
                 });
