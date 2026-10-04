@@ -123,7 +123,7 @@ As the hackathon rules require, here is how we used AI tools:
   - write this README
 
   We chose the data sources and ran the pipelines on our own hardware (including the A100 training). We checked outputs by hand: for example, the Wake County tax estimate was recomputed from the NCDOR rate, and the radar products were inspected and fixed when the first ground-motion rates were unrealistic. We take responsibility for the code and the numbers.
-- **Frontend:** Zan built the original interface by hand (map, parameter form, tabs, layout and styling). <!-- Zan: add any AI tools you used here, or delete this comment. -->
+- **Frontend:** Zan built the original interface by hand (map, parameter form, tabs, layout and styling). Extra styling and certain features (tab switching and Find Better Spots button) were done with ChatGPT.
 
 ## License
 
