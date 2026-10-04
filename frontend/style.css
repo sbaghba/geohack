@@ -379,3 +379,6 @@ ul.drivers li { margin: 3px 0; }
     #map-wrap { width: 100%; height: 55%; }
     #sidebar { width: 100%; height: 45%; }
 }
+
+/* existing data centers on the map */
+.dc-icon { color: #7b2cbf; font-size: 18px; line-height: 18px; text-align: center; text-shadow: 0 0 3px white, 0 0 3px white; }

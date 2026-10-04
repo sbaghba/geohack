@@ -96,4 +96,13 @@ SOURCES = {
     "pressure_model": ("SiteSense Siting Pressure model (GPU XGBoost on OSM data centers, states held out)", "https://github.com/sbaghba/geohack"),
     "usdm": ("U.S. Drought Monitor (current week, via FEMA GIS)", "https://droughtmonitor.unl.edu/"),
     "opera": ("OPERA DISP-S1 (ASF DAAC)", "https://www.earthdata.nasa.gov/data/catalog/asf-opera-l3-disp-s1-v1-1"),
+    "padus": ("USGS Protected Areas Database of the U.S. (PAD-US 4, GAP 1-3)", "https://www.usgs.gov/programs/gap-analysis-project/science/pad-us-data-overview"),
 }
+
+
+# Data-center campuses that OpenStreetMap maps without a name (osm_id -> widely reported operator/site).
+DATACENTER_NAMES = {
+    "w116005354": "Apple data center (Maiden)", "w652034566": "Apple data center (Maiden)", "w873137563": "Apple data center (Maiden)",
+    "w186515922": "Google data center (Lenoir)", "w844372538": "Google data center (Lenoir)",
+}
+DATACENTER_CAMPUS_KM = 1.0   # OSM often maps each building; points closer than this are one campus

@@ -69,8 +69,13 @@ def brief(r: Report) -> dict:
         "hazards": {"fema_zone": r.hazards.fema_zone, "nri_overall": r.hazards.nri.overall, "nri_rating": r.hazards.nri_rating,
                     "subsidence_mm_yr": r.hazards.subsidence_mm_yr, "nisar_coherence": r.hazards.nisar_coherence},
         "community": {"pop_3km": r.community.pop_3km, "svi_pct": r.community.svi_pct,
-                      "schools_1km": len(r.community.schools_1km), "hospitals_1km": len(r.community.hospitals_1km)},
-        "land": {"acres": r.land.acres, "flags": r.land.flags},
+                      "schools_1km": len(r.community.schools_1km), "hospitals_1km": len(r.community.hospitals_1km),
+                      "existing_datacenters_25km": [f"{p.name} ({p.distance_km} km)" for p in r.community.datacenters_25km[:5]],
+                      "nearest_datacenter": None if r.community.nearest_datacenter is None else
+                      f"{r.community.nearest_datacenter.name} ({r.community.nearest_datacenter.distance_km} km)"},
+        "land": {"acres": r.land.acres, "flags": r.land.flags,
+                 "protected_areas": [f"{a.name} ({a.designation}, {'contains site' if a.contains_site else 'within 1 km'})"
+                                     for a in r.land.protected_areas]},
         "missing": r.missing,
     }
 

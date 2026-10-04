@@ -12,7 +12,7 @@ import pandas as pd
 from . import reference as R
 from .contract import (
     AnalyzeRequest, Candidate, Carbon, Community, Delta, Driver, Economy, Energy, Hazards, Land, LandConverted, NriScores,
-    Poi, Report, Scores, Site, Source, SuggestRequest, SuggestResponse, Water,
+    Poi, ProtectedArea, Report, Scores, Site, Source, SuggestRequest, SuggestResponse, Water,
 )
 from .errors import out_of_coverage
 from .impact import metrics, mitigations
@@ -62,7 +62,8 @@ FIELD_SOURCES_NC = {
     "economy.property_tax_usd_yr": "ncdor", "hazards.fema_zone": "nfhl", "hazards.in_floodplain": "nfhl",
     "hazards.nri": "nri", "hazards.nri_rating": "nri", "hazards.subsidence_mm_yr": "opera",
     "hazards.nisar_coherence": "nisar", "hazards.nisar_motion_12d_mm": "nisar", "community": "acs", "community.svi_pct": "nri",
-    "community.schools_1km": "osm", "community.hospitals_1km": "osm", "land": "model", "land.converted_acres": "worldcover",
+    "community.schools_1km": "osm", "community.hospitals_1km": "osm", "community.datacenters_25km": "osm",
+    "community.nearest_datacenter": "osm", "land.protected_areas": "padus", "land": "model", "land.converted_acres": "worldcover",
     "scores": "model", "scores.pressure": "pressure_model", "scores.pressure_us_pct": "pressure_model", "scores.pressure_drivers": "pressure_model",
     "site.county": "census_tiger",
 }
@@ -89,6 +90,51 @@ def _pois(kind: str, name: str, lat: float, lon: float, km: float) -> list[Poi]:
             for d, r in store.within(name, lat, lon, km)[:25]]
 
 
+_DC_CACHE: dict = {}
+
+
+def _dc_campuses() -> pd.DataFrame:
+    """OSM data-center points merged into campuses (OSM often maps each building separately)."""
+    if "df" not in _DC_CACHE:
+        df = store.points("datacenters").copy()
+        if df.empty:
+            _DC_CACHE["df"] = df
+            return df
+        df["name"] = [R.DATACENTER_NAMES.get(str(o)) or (n if isinstance(n, str) and n.strip() else None)
+                      for o, n in zip(df.get("osm_id", [None] * len(df)), df["name"])]
+        rows, used = [], np.zeros(len(df), bool)
+        lat, lon = df.lat.values, df.lon.values
+        for i in range(len(df)):
+            if used[i]:
+                continue
+            grp = np.where(~used & (haversine_km(lat[i], lon[i], lat, lon) <= R.DATACENTER_CAMPUS_KM))[0]
+            used[grp] = True
+            names = [n for n in df.name.values[grp] if n]
+            rows.append({"lat": float(lat[grp].mean()), "lon": float(lon[grp].mean()),
+                         "name": max(set(names), key=names.count) if names else None})
+        _DC_CACHE["df"] = pd.DataFrame(rows)
+    return _DC_CACHE["df"]
+
+
+def _datacenters(lat: float, lon: float) -> tuple[list[Poi], Poi | None]:
+    df = _dc_campuses()
+    if df.empty:
+        return [], None
+    d = haversine_km(lat, lon, df.lat.values, df.lon.values)
+    order = np.argsort(d)
+    poi = lambda i: Poi(name=(df.name.iloc[i] or "Data center (unnamed in OpenStreetMap)")[:80], kind="data_center",  # noqa: E731
+                        lat=round(float(df.lat.iloc[i]), 5), lon=round(float(df.lon.iloc[i]), 5), distance_km=round(float(d[i]), 1))
+    near = [poi(i) for i in order if d[i] <= 25][:10]
+    return near, poi(int(order[0]))
+
+
+def _protected(pas) -> tuple[list[ProtectedArea], list[str]]:
+    if not pas:
+        return [], []
+    objs = [ProtectedArea(**p) for p in pas]
+    return objs, (["protected_area"] if any(p.contains_site for p in objs) else ["protected_area_within_1km"])
+
+
 def report(req: AnalyzeRequest) -> Report:
     hex_id = store.hex_of(req.lat, req.lon)
     row = store.row(hex_id)
@@ -109,9 +155,11 @@ def report(req: AnalyzeRequest) -> Report:
     line_km, line_kv, _ = store.nearest("lines", req.lat, req.lon, R.MIN_GRID_KV)
     schools = _pois("school", "schools", req.lat, req.lon, 1.0)
     hospitals = _pois("hospital", "hospitals", req.lat, req.lon, 1.0)
-    (zone, sfha), drought = point_lookups(req.lat, req.lon)
+    (zone, sfha), drought, pas = point_lookups(req.lat, req.lon)
+    dcs, dc_nearest = _datacenters(req.lat, req.lon)
+    protected, pa_flags = _protected(pas)
 
-    flags = []
+    flags = list(pa_flags)
     if sfha:
         flags.append("in_floodplain")
     if (_f(row.get("lc_wetland")) or 0) > 0.3:
@@ -156,16 +204,18 @@ def report(req: AnalyzeRequest) -> Report:
         community=Community(pop_1km=None if pop_d is None else round(pop_d * math.pi), pop_3km=_round(row.get("pop_3km")),
                             pop_5km=_round(row.get("pop_5km")), homes_1km=None if hh_d is None else round(hh_d * math.pi),
                             svi_pct=_f1(row.get("svi_pct")), median_income_usd=_round(row.get("median_income_usd")),
-                            schools_1km=schools, hospitals_1km=hospitals),
+                            schools_1km=schools, hospitals_1km=hospitals, datacenters_25km=dcs, nearest_datacenter=dc_nearest),
         land=Land(acres=acres, converted_acres=LandConverted(forest=share("forest"), cropland=share("cropland"), pasture=share("pasture"),
                                                              wetland=share("wetland"), developed=share("developed"),
                                                              other=round(acres * ((_f(row.get("lc_other")) or 0) + (_f(row.get("lc_water")) or 0)), 1)),
-                  flags=flags),
+                  flags=flags, protected_areas=protected),
         mitigations=mitigations(req, grid_lb, price, tax_rate, m),
         sources=_sources(set(_field_sources(row).values()) | {"model"}),
         field_sources=_field_sources(row),
     )
     rep.missing = _missing(rep.model_dump(exclude={"request", "mitigations", "sources", "missing", "field_sources"}))
+    if pas is None:
+        rep.missing.append("land.protected_areas")
     return rep
 
 
@@ -181,11 +231,14 @@ def _tier2(req: AnalyzeRequest) -> Report:
     grid_lb = R.EGRID_STATE_LB[st]
     price = R.EIA_PRICE_CENTS.get(st, 12.94) * 10
     m = metrics(req, grid_lb, price, None)
-    (zone, sfha), drought = point_lookups(req.lat, req.lon)
-    flags = ["outside_nc"] + (["in_floodplain"] if sfha else [])
+    (zone, sfha), drought, pas = point_lookups(req.lat, req.lon)
+    protected, pa_flags = _protected(pas)
+    dcs, dc_nearest = _datacenters(req.lat, req.lon)
+    flags = ["outside_nc"] + (["in_floodplain"] if sfha else []) + pa_flags
     fs = {"energy": "model", "energy.grid_region": "egrid", "energy.price_usd_per_mwh": "eia", "carbon": "model",
           "carbon.grid_lb_per_mwh": "egrid", "water": "model", "water.drought_category": "usdm", "economy": "model",
-          "hazards.fema_zone": "nfhl", "land": "model"}
+          "hazards.fema_zone": "nfhl", "land": "model", "land.protected_areas": "padus",
+          "community.datacenters_25km": "osm", "community.nearest_datacenter": "osm"}
     rep = Report(
         generated_at=datetime.now(timezone.utc).isoformat(timespec="seconds"), request=req,
         site=Site(lat=req.lat, lon=req.lon, hex_id=None, label=f"{st} (coarse data outside NC)", county=None, state=st, tier=2),
@@ -197,8 +250,8 @@ def _tier2(req: AnalyzeRequest) -> Report:
                     households_equiv=round(m["households_water"]), drought_category=drought),
         economy=Economy(capex_usd=m["capex"], construction_jobs=round(m["construction_jobs"]), permanent_jobs=round(m["permanent_jobs"])),
         hazards=Hazards(fema_zone=zone, in_floodplain=sfha, nri=NriScores()),
-        community=Community(),
-        land=Land(acres=m["acres"], converted_acres=LandConverted(), flags=flags),
+        community=Community(datacenters_25km=dcs, nearest_datacenter=dc_nearest),
+        land=Land(acres=m["acres"], converted_acres=LandConverted(), flags=flags, protected_areas=protected),
         mitigations=mitigations(req, grid_lb, price, None, m),
         sources=_sources(set(fs.values()) | {"model"}), field_sources=fs,
     )

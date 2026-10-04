@@ -139,6 +139,9 @@
                             <p class="big" id="svi">-</p>
                             <h2>Schools within 1 km</h2>
                             <ul class="drivers" id="schools"></ul>
+                            <h2>Existing data centers within 25 km</h2>
+                            <ul class="drivers" id="datacenters"></ul>
+                            <p class="note" id="dc-nearest"></p>
                             <h2>Land that would be converted</h2>
                             <p class="note" id="landuse"></p>
                         </div>
@@ -154,6 +157,9 @@
                             <h2>Ground movement (satellite radar)</h2>
                             <p class="big" id="subsidence">-</p>
                             <p class="note" id="coherence"></p>
+                            <h2>Protected land (within 1 km)</h2>
+                            <ul class="drivers" id="protected"></ul>
+                            <p class="note">USGS PAD-US: parks, preserves, game lands, conservation easements</p>
                             <h2>Warnings</h2>
                             <ul class="drivers" id="flags"></ul>
                         </div>
@@ -422,7 +428,7 @@
                 avoid: 'Avoid: weak site and high burden'
             };
             const DROUGHT = { none: 'None', D0: 'D0 - abnormally dry', D1: 'D1 - moderate drought', D2: 'D2 - severe drought', D3: 'D3 - extreme drought', D4: 'D4 - exceptional drought' };
-            const FLAGS = { in_floodplain: 'Inside the 100-year floodplain', in_wetland: 'Mostly wetland', protected_area: 'Protected land',
+            const FLAGS = { in_floodplain: 'Inside the 100-year floodplain', in_wetland: 'Mostly wetland', protected_area: 'Inside protected land (PAD-US)', protected_area_within_1km: 'Protected land within 1 km',
                             school_within_500m: 'A school is within 500 m', outside_nc: 'Outside North Carolina: coarse data only' };
 
             function renderReport(data) {
@@ -472,6 +478,9 @@
                 setText('medi', c.median_income_usd == null ? 'n/a' : money(c.median_income_usd));
                 setText('svi', c.svi_pct == null ? 'n/a' : `${fmt(c.svi_pct)} / 100`);
                 setList('schools', (c.schools_1km || []).map(s => `${s.name} (${fmt(s.distance_km, 1)} km)`));
+                setList('datacenters', (c.datacenters_25km || []).map(d => `${d.name} (${fmt(d.distance_km, 1)} km)`));
+                setText('dc-nearest', c.nearest_datacenter && !(c.datacenters_25km || []).length
+                    ? `Nearest mapped data center: ${c.nearest_datacenter.name}, ${fmt(c.nearest_datacenter.distance_km)} km away` : 'Source: OpenStreetMap (not every facility is mapped)');
                 const la = data.land.converted_acres;
                 setText('landuse', `${fmt(data.land.acres)} acres: ${fmt(la.forest)} forest, ${fmt(la.cropland)} cropland, ` +
                     `${fmt(la.pasture)} pasture, ${fmt(la.wetland)} wetland, ${fmt(la.developed)} already developed`);
@@ -484,6 +493,8 @@
                 setText('subsidence', h.subsidence_mm_yr == null ? 'Not measured here yet'
                     : `${h.subsidence_mm_yr > 0 ? '+' : ''}${fmt(h.subsidence_mm_yr, 1)} mm/yr ${h.subsidence_mm_yr < -3 ? '(sinking)' : '(stable)'}`);
                 setText('coherence', h.nisar_coherence == null ? (h.subsidence_mm_yr == null ? 'Sentinel-1 ground motion is processed for northeast NC so far; NISAR stability for about two-thirds of NC.' : '') : `NISAR radar ground stability: ${fmt(h.nisar_coherence, 2)} (1 = very stable)`);
+                setList('protected', (data.land.protected_areas || []).map(a =>
+                    `${a.contains_site ? '⚠ Site is inside ' : ''}${a.name}${a.designation ? ' (' + a.designation + ')' : ''}`));
                 setList('flags', (data.land.flags || []).map(f => FLAGS[f] || f));
 
                 // Sources
@@ -526,6 +537,9 @@
                 }).addTo(contextLayer));
                 (data.community.schools_1km || []).forEach(s =>
                     L.circleMarker([s.lat, s.lon], { radius: 6, color: '#ef476f', fillOpacity: 0.8 }).bindTooltip(s.name).addTo(contextLayer));
+                (data.community.datacenters_25km || []).forEach(d =>
+                    L.marker([d.lat, d.lon], { icon: L.divIcon({ className: 'dc-icon', html: '▣', iconSize: [18, 18] }) })
+                        .bindTooltip(`Existing data center: ${d.name} (${fmt(d.distance_km, 1)} km)`).addTo(contextLayer));
                 contextLayer.addTo(map);
                 placePin(data.site.lat, data.site.lon);
             }

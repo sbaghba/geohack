@@ -71,7 +71,10 @@ Rules:
 - scores.pressure is a percentile (0-100) within North Carolina of how much this spot resembles where data centers already
   get built (machine-learning model trained on US data centers, validated on held-out states); scores.pressure_us_pct is the
   same vs all lower-48 land. Relative, not a probability. pressure_drivers say why ("+" raises it).
-- hazards.subsidence_mm_yr is local ground motion vs the surrounding ~12 km from satellite radar (negative = sinking)."""
+- hazards.subsidence_mm_yr is local ground motion vs the surrounding ~12 km from satellite radar (negative = sinking).
+- land.protected_areas are USGS PAD-US conservation lands (parks, preserves, game lands, easements) containing the site or
+  within 1 km; building in or next to one is a red flag. community.datacenters_25km lists existing data centers mapped in
+  OpenStreetMap (coverage is incomplete); clustering near them can mean shared grid upgrades but also cumulative water/power demand."""
 
 
 def gemini_tools():

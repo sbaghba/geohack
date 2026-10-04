@@ -1,4 +1,6 @@
-# SiteSense API Contract v1.3.0
+# SiteSense API Contract v1.4.0
+
+> 1.4.0 (additive): `community.datacenters_25km` + `community.nearest_datacenter` (existing data centers, OSM; `Poi` kind `data_center`); `land.protected_areas` (USGS PAD-US GAP 1-3, live); new flag `protected_area_within_1km` (`protected_area` now set when the site is inside one).
 
 > 1.3.0 (additive): `scores.pressure_us_pct` (national percentile); `scores.pressure` is now the percentile within NC.
 

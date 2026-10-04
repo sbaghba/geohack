@@ -20,7 +20,7 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
-CONTRACT_VERSION = "1.3.0"  # 1.1: county_households, county_homes_share_pct, field_sources | 1.2: hazards.nisar_*, nisar_coherence layer, /api/overlays
+CONTRACT_VERSION = "1.4.0"  # 1.1: county_households, county_homes_share_pct, field_sources | 1.2: hazards.nisar_*, nisar_coherence layer, /api/overlays
 
 # ----------------------------------------------------------------- enums ---
 
@@ -35,7 +35,8 @@ Quadrant = Literal["good", "tradeoff", "poor", "avoid"]
 Flag = Literal[
     "in_floodplain",      # FEMA 100-yr zone (A*, V*)
     "in_wetland",         # NWI
-    "protected_area",     # PAD-US
+    "protected_area",     # PAD-US (GAP 1-3) polygon contains the site
+    "protected_area_within_1km",  # PAD-US (GAP 1-3) within 1 km
     "school_within_500m",
     "outside_nc",         # tier 2: coarse data only
 ]
@@ -194,6 +195,8 @@ class Community(BaseModel):
     median_income_usd: Optional[float] = None
     schools_1km: list[Poi] = Field(default_factory=list)
     hospitals_1km: list[Poi] = Field(default_factory=list)
+    datacenters_25km: list[Poi] = Field(default_factory=list, description="Existing data centers (OpenStreetMap) within 25 km, nearest first, max 10")
+    nearest_datacenter: Optional[Poi] = Field(None, description="Nearest existing data center anywhere in the dataset")
 
 
 class LandConverted(BaseModel):
@@ -205,10 +208,20 @@ class LandConverted(BaseModel):
     other: float = 0
 
 
+class ProtectedArea(BaseModel):
+    name: str
+    designation: Optional[str] = Field(None, examples=["State Park"])
+    manager: Optional[str] = None
+    gap_status: Optional[int] = Field(None, ge=1, le=4, description="USGS GAP code: 1-2 managed for biodiversity, 3 multiple use")
+    acres: Optional[float] = None
+    contains_site: bool = Field(False, description="True if the site point is inside it; otherwise it is within 1 km")
+
+
 class Land(BaseModel):
     acres: float
     converted_acres: LandConverted
     flags: list[Flag] = Field(default_factory=list)
+    protected_areas: list[ProtectedArea] = Field(default_factory=list, description="PAD-US GAP 1-3 areas containing the site or within 1 km (max 5)")
 
 
 class Delta(BaseModel):

@@ -66,6 +66,9 @@ def real_data(tmp_path, monkeypatch):
     pd.DataFrame({"lat": np.linspace(35.4, 36.0, 50), "lon": -78.5, "kv": 230.0}).to_parquet(tmp_path / "points" / "lines.parquet")
     pd.DataFrame({"lat": [CENTER[0] + 0.003], "lon": [CENTER[1]], "name": ["Test Elementary"], "kv": [np.nan]}).to_parquet(tmp_path / "points" / "schools.parquet")
     pd.DataFrame({"lat": [35.9], "lon": [-78.9], "name": ["Far Hospital"], "kv": [np.nan]}).to_parquet(tmp_path / "points" / "hospitals.parquet")
+    # two buildings of one campus (merged), one unnamed campus 15 km away, one far away
+    pd.DataFrame({"lat": [35.80, 35.802, 35.70, 34.0], "lon": [-78.55, -78.551, -78.38, -84.2], "name": ["Big DC", "", "", "Atlanta DC"],
+                  "kv": np.nan, "osm_id": ["w1", "w2", "w116005354", "w3"]}).to_parquet(tmp_path / "points" / "datacenters.parquet")
     (tmp_path / "layers" / "suitability.geojson").write_text(json.dumps({"type": "FeatureCollection", "features": []}))
     (tmp_path / "overlays").mkdir()
     (tmp_path / "overlays" / "nisar_hv.png").write_bytes(b"\x89PNG fake")
@@ -80,8 +83,12 @@ def real_data(tmp_path, monkeypatch):
         monkeypatch.setattr(mod, "settings", s2)
     for mod in (store_mod, real):
         monkeypatch.setattr(mod, "store", fresh)
-    monkeypatch.setattr(real, "point_lookups", lambda lat, lon: ((("AE", True) if lat > 35.75 else ("X", False)), "D1"))
+    park = {"name": "Test State Park", "designation": "State Park", "manager": None, "gap_status": 2, "acres": 5000.0}
+    monkeypatch.setattr(real, "point_lookups", lambda lat, lon: ((("AE", True) if lat > 35.75 else ("X", False)), "D1",
+                                                               [{**park, "contains_site": lat > 35.75}] if lon < -78.5 else []))
+    real._DC_CACHE.clear()
     yield tmp_path
+    real._DC_CACHE.clear()
     store_mod._points.cache_clear()
 
 
@@ -137,3 +144,17 @@ def test_overlays(real_data):
     o = c.get("/api/overlays").json()["overlays"]
     assert len(o) == 1 and o[0]["url"].startswith("http") and o[0]["url"].endswith("/static/overlays/nisar_hv.png")
     assert o[0]["bounds"] == [[35.5, -79.0], [36.3, -77.9]]
+
+
+def test_datacenters_and_protected(real_data):
+    c = TestClient(app)
+    r = Report.model_validate(c.post("/api/analyze", json={"lat": CENTER[0], "lon": CENTER[1]}).json())
+    names = [p.name for p in r.community.datacenters_25km]
+    assert names == ["Big DC", "Apple data center (Maiden)"]          # campus merged; unnamed osm_id gets its known name
+    assert r.community.nearest_datacenter.name == "Big DC" and 10 < r.community.nearest_datacenter.distance_km < 12
+    assert "protected_area_within_1km" in r.land.flags and r.land.protected_areas[0].name == "Test State Park"
+    assert r.field_sources["land.protected_areas"] == "padus" and "padus" in {s.key for s in r.sources}
+    inside = Report.model_validate(c.post("/api/analyze", json={"lat": 35.80, "lon": -78.55}).json())
+    assert "protected_area" in inside.land.flags and inside.land.protected_areas[0].contains_site
+    clear = Report.model_validate(c.post("/api/analyze", json={"lat": CENTER[0], "lon": -78.45}).json())
+    assert clear.land.protected_areas == [] and not {"protected_area", "protected_area_within_1km"} & set(clear.land.flags)
