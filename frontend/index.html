@@ -36,7 +36,7 @@
                     <label for="evaporative">Evaporative</label>
                     <input type="radio" name="cooling" value="air" id="air"/>
                     <label for="air">Air (Dry)</label>
-                    <input type="radio" name="cooling" value="closed-loop-liquid" id="cll"/>
+                    <input type="radio" name="cooling" value="liquid" id="cll"/>
                     <label for="cll">Closed-loop Liquid</label>
                 </div>
             </div>
@@ -45,7 +45,7 @@
                 <div class="buttons">
                     <input type="radio" name="power-source" value="grid" id="g" checked="checked"/>
                     <label for="g">Grid</label>
-                    <input type="radio" name="power-source" value="grid-solar" id="s"/>
+                    <input type="radio" name="power-source" value="grid_solar" id="s"/>
                     <label for="s">Grid + On-site Solar</label>
                     <input type="radio" name="power-source" value="gas" id="gas"/>
                     <label for="gas">On-site Gas Turbines</label>
@@ -54,9 +54,9 @@
             <div class="colflex">
                 <h2>Workload</h2>
                 <div class="buttons">
-                    <input type="radio" name="workload" value="ai-training" id="ai" checked="checked"/>
+                    <input type="radio" name="workload" value="ai" id="ai" checked="checked"/>
                     <label for="ai">AI Training</label>
-                    <input type="radio" name="workload" value="mixed-cloud" id="mix"/>
+                    <input type="radio" name="workload" value="mixed" id="mix"/>
                     <label for="mix">Mixed Cloud</label>
                 </div>
             </div>
@@ -112,8 +112,11 @@
                 var powerSource = document.querySelector('input[name="power-source"]:checked').value;
                 var workload = document.querySelector('input[name="workload"]:checked').value;
 
-                var fetched = await fetch('https://sitesense-api.onrender.com/', {
+                var fetched = await fetch('https://sitesense-api.onrender.com/api/analyze', {
                     method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
                     body: JSON.stringify({
                         "lat": currentLat,
                         "lon": currentLon,

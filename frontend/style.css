@@ -64,6 +64,8 @@ label {
     border-radius: 10px;
     background-color: grey;
     text-align: center;
+    margin-left: 10px;
+    margin-right: 10px;
 }
 
 .buttons input[type="radio"]:checked+label {
@@ -73,9 +75,8 @@ label {
 .buttons {
     margin-top: 25;
     display: flex;
-    width: 100vw;
     align-items: center;
-    justify-content: space-around;
+    justify-content: center;
 }
 
 #submitter {
