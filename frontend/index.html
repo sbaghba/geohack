@@ -10,6 +10,15 @@
     </head>
 
     <body>
+        <div id="landing-overlay">
+            <div id="landing-card">
+                <h1>Does Your Data Center Fit?</h1>
+                <p>See what a data center would mean for energy, water, jobs, and your community.</p>
+                <button id="landing-button" onclick="startSiteSelection()">
+                    Drop a data center
+                </button>
+            </div>
+        </div>
         <div id="main-flex">
             <div id="map-wrap">
                 <div id="map"></div>
@@ -53,12 +62,12 @@
                             <div class="score-row">
                                 <div class="colflex">
                                     <h2>Suitability</h2>
-                                    <p class="big" id="suit">Waiting for pin...</p>
+                                    <p class="big" id="suit">-</p>
                                     <p class="note">for developers (0-100)</p>
                                 </div>
                                 <div class="colflex">
                                     <h2>Burden</h2>
-                                    <p class="big" id="burd">Waiting for pin...</p>
+                                    <p class="big" id="burd">-</p>
                                     <p class="note">on the community (0-100)</p>
                                 </div>
                             </div>
@@ -80,12 +89,12 @@
                         <div class="tab-else">
                             <div class="colflex">
                                 <h2>Electricity per year</h2>
-                                <p class="big" id="mwha">Waiting for pin...</p>
+                                <p class="big" id="mwha">-</p>
                                 <p class="note" id="mwhhouse"></p>
                             </div>
                             <div class="colflex">
                                 <h2>CO2 per year</h2>
-                                <p class="big" id="co2">Waiting for pin...</p>
+                                <p class="big" id="co2">-</p>
                                 <p class="note" id="cars"></p>
                             </div>
                             <div class="colflex">
@@ -103,10 +112,10 @@
                         <h1>Water</h1>
                         <div class="tab-else">
                             <h2>Used on site per year (cooling)</h2>
-                            <p class="big" id="onwater">Waiting for pin...</p>
+                            <p class="big" id="onwater">-</p>
                             <p class="note" id="houses"></p>
                             <h2>Used off site per year (power plants)</h2>
-                            <p class="big" id="offwater">Waiting for pin...</p>
+                            <p class="big" id="offwater">-</p>
                             <h2>Local water stress</h2>
                             <p class="big" id="waterstress">-</p>
                             <h2>Drought right now</h2>
@@ -117,24 +126,24 @@
                         <h1>Jobs & Taxes</h1>
                         <div class="tab-else">
                             <h2>Construction jobs (peak)</h2>
-                            <p class="big" id="conjobs">Waiting for pin...</p>
+                            <p class="big" id="conjobs">-</p>
                             <h2>Permanent jobs</h2>
-                            <p class="big" id="permjobs">Waiting for pin...</p>
+                            <p class="big" id="permjobs">-</p>
                             <h2>Unemployed people in this county</h2>
-                            <p class="big" id="unemp">Waiting for pin...</p>
+                            <p class="big" id="unemp">-</p>
                             <h2>County unemployment rate</h2>
-                            <p class="big" id="unpc">Waiting for pin...</p>
+                            <p class="big" id="unpc">-</p>
                             <h2>Property taxes per year</h2>
-                            <p class="big" id="propt">Waiting for pin...</p>
+                            <p class="big" id="propt">-</p>
                         </div>
                     </div>
                     <div class="tab-panel" id="tab-5">
                         <h1>Community</h1>
                         <div class="tab-else">
                             <h2>People within 1 km / 3 km / 5 km</h2>
-                            <p class="big" id="pops">Waiting for pin...</p>
+                            <p class="big" id="pops">-</p>
                             <h2>Median household income</h2>
-                            <p class="big" id="medi">Waiting for pin...</p>
+                            <p class="big" id="medi">-</p>
                             <h2>Social vulnerability</h2>
                             <p class="big" id="svi">-</p>
                             <h2>Schools within 1 km</h2>
@@ -242,6 +251,10 @@
             var chatHistory = [];
             var chatBusy = false;
 
+            // landing overlay
+            function startSiteSelection() {
+                document.getElementById('landing-overlay').classList.add('hidden');
+            }
             // ------------------------------------------------------------ helpers
             function fmt(v, digits = 0) {
                 if (v === null || v === undefined || Number.isNaN(v)) return 'n/a';
