@@ -21,7 +21,7 @@
                     <div class="tab-panel active" id="tab-1">
                         <h1>Overview</h1>
                         <div class="tab-else">
-                            <div class="colflex">\
+                            <div class="colflex">
                                 <h2>Suitability Score:</h2>
                                 <p class="big" id="suit">Waiting for pin...</p>
                             </div>
@@ -90,7 +90,7 @@
                         </div>
                     </div>
                 </div>
-
+                <button id="better-button" onclick="findBetterSpot()">Find Better Spots</button>
                 <button id="reset-button" onclick="resetMap()">Reset Map</button>
             </div>
         </div>
@@ -151,6 +151,10 @@
             var markers;
             var currentLat;
             var currentLon;
+            var betterMarkers = [];
+            var currentParams = null;
+            var originalLat;
+            var originalLon;
 
             function init() {
                 currentLat = null;
@@ -175,7 +179,17 @@
                     var formatted = latlng.substring(7, latlng.length-2).split(", ")
                     currentLat = parseFloat(formatted[0]);
                     currentLon = parseFloat(formatted[1]);
+                    originalLat = currentLat;
+                    originalLon = currentLon;
+
                     var m = new L.marker([currentLat, currentLon]);
+                    m.on("click", function () {
+                        currentLat = originalLat;
+                        currentLon = originalLon;
+
+                        analyzeLocation(originalLat, originalLon);
+                    });
+
                     markers.push(m);
                     map.addLayer(m);
                     canPin = false;
@@ -194,44 +208,16 @@
                 var powerSource = document.querySelector('input[name="power-source"]:checked').value;
                 var workload = document.querySelector('input[name="workload"]:checked').value;
 
-                var fetched = await fetch('https://sitesense-api.onrender.com/api/analyze', {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({
-                        "lat": currentLat,
-                        "lon": currentLon,
-                        "mw": itLoad,
-                        "cooling": cooling,
-                        "power": powerSource,
-                        "workload": workload
-                    })
-                })
+                currentParams = {
+                    lat: currentLat,
+                    lon: currentLon,
+                    mw: itLoad,
+                    cooling: cooling,
+                    power: powerSource,
+                    workload: workload
+                };
 
-                var data = await fetched.json();
-
-                document.getElementById("suit").textContent = data.scores.suitability;
-                document.getElementById("burd").textContent = data.scores.burden;
-
-                document.getElementById("co2").textContent = data.carbon.tons_co2_yr;
-                document.getElementById("cars").textContent = data.carbon.cars_equiv;
-                document.getElementById("mwha").textContent = data.energy.annual_mwh;
-                document.getElementById("mwhhouse").textContent = data.energy.homes_equiv;
-
-                document.getElementById("onwater").textContent = data.water.onsite_m3_yr;
-                document.getElementById("offwater").textContent = data.water.offsite_m3_yr;
-                document.getElementById("houses").textContent = data.water.households_equiv;
-
-                document.getElementById("conjobs").textContent = data.economy.construction_jobs;
-                document.getElementById("permjobs").textContent = data.economy.permanent_jobs;
-                document.getElementById("unemp").textContent = data.economy.county_unemployed;
-                document.getElementById("unpc").textContent = data.economy.county_unemployment_pct;
-                document.getElementById("propt").textContent = data.economy.property_tax_usd_yr;
-
-                document.getElementById("1km").textContent = data.community.pop_1km;
-                document.getElementById("5km").textContent = data.community.pop_5km;
-                document.getElementById("medi").textContent = data.community.median_income_usd;
+                await analyzeLocation(currentLat, currentLon);
             }
 
             function resetMap() {
@@ -252,6 +238,133 @@
 
                 document.querySelectorAll(".tab")[tabNumber - 1].classList.add("active");
                 document.getElementById(`tab-${tabNumber}`).classList.add("active");
+            }
+
+            async function findBetterSpot() {
+                if (!currentParams) {
+                    alert("Please select a location first.");
+                    return;
+                }
+
+                // Remove old suggestion pins
+                betterMarkers.forEach(marker => map.removeLayer(marker));
+                betterMarkers = [];
+
+                const response = await fetch(
+                    'https://sitesense-api.onrender.com/api/suggest',
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({
+                            ...currentParams,
+                            radius_km: 50,
+                            n: 3
+                        })
+                    }
+                );
+
+                const data = await response.json();
+
+                data.candidates.forEach((candidate, index) => {
+                    const marker = L.circleMarker(
+                        [candidate.lat, candidate.lon],
+                        {
+                            radius: 10,
+                            color: "#00ffff",
+                            fillColor: "#00ffff",
+                            fillOpacity: 0.25,
+                            weight: 3
+                        }
+                    );
+
+                    marker.bindTooltip(
+                        `Better Spot #${candidate.rank}<br>${candidate.label}`,
+                        { direction: "top" }
+                    );
+
+                    marker.on("click", function () {
+                        showCandidate(candidate);
+                    });
+
+                    marker.addTo(map);
+                    betterMarkers.push(marker);
+                });
+            }
+
+            function showCandidate(candidate) {
+                document.getElementById("suit").textContent =
+                    candidate.scores.suitability;
+
+                document.getElementById("burd").textContent =
+                    candidate.scores.burden;
+
+                // Show the candidate's location as the current location
+                currentLat = candidate.lat;
+                currentLon = candidate.lon;
+
+                // Candidate data returned by /suggest is primarily scores/deltas.
+                // Fetch /analyze again so every tab contains the complete data.
+                analyzeLocation(candidate.lat, candidate.lon);
+            }
+
+            async function analyzeLocation(lat, lon) {
+                const response = await fetch(
+                    'https://sitesense-api.onrender.com/api/analyze',
+                    {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify({
+                            ...currentParams,
+                            lat: lat,
+                            lon: lon
+                        })
+                    }
+                );
+
+                const data = await response.json();
+
+                document.getElementById("suit").textContent =
+                    data.scores.suitability;
+                document.getElementById("burd").textContent =
+                    data.scores.burden;
+
+                document.getElementById("co2").textContent =
+                    data.carbon.tons_co2_yr;
+                document.getElementById("cars").textContent =
+                    data.carbon.cars_equiv;
+                document.getElementById("mwha").textContent =
+                    data.energy.annual_mwh;
+                document.getElementById("mwhhouse").textContent =
+                    data.energy.homes_equiv;
+
+                document.getElementById("onwater").textContent =
+                    data.water.onsite_m3_yr;
+                document.getElementById("offwater").textContent =
+                    data.water.offsite_m3_yr;
+                document.getElementById("houses").textContent =
+                    data.water.households_equiv;
+
+                document.getElementById("conjobs").textContent =
+                    data.economy.construction_jobs;
+                document.getElementById("permjobs").textContent =
+                    data.economy.permanent_jobs;
+                document.getElementById("unemp").textContent =
+                    data.economy.county_unemployed;
+                document.getElementById("unpc").textContent =
+                    data.economy.county_unemployment_pct;
+                document.getElementById("propt").textContent =
+                    data.economy.property_tax_usd_yr;
+
+                document.getElementById("1km").textContent =
+                    data.community.pop_1km;
+                document.getElementById("5km").textContent =
+                    data.community.pop_5km;
+                document.getElementById("medi").textContent =
+                    data.community.median_income_usd;
             }
 
             window.onload = init

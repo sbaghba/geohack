@@ -158,6 +158,14 @@ p.big {
     background-color: #bbb;
 }
 
-body {
-    outline: 10px solid red !important;
+#better-button {
+    padding: 12px;
+    width: 100%;
+    border: 0;
+    background-color: grey;
+    cursor: pointer;
+}
+
+#better-button:hover {
+    background-color: #bbb;
 }
