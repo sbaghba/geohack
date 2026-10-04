@@ -481,9 +481,9 @@
                 setText('flood', h.fema_zone == null ? 'n/a' : `Zone ${h.fema_zone}${h.in_floodplain ? ' (100-yr floodplain)' : ''}`);
                 setText('nri', h.nri_rating || 'n/a');
                 setText('nri-detail', `hurricane ${fmt(h.nri.hurricane)}, heat wave ${fmt(h.nri.heat_wave)}, flooding ${fmt(h.nri.riverine_flooding)}, tornado ${fmt(h.nri.tornado)} (US percentile)`);
-                setText('subsidence', h.subsidence_mm_yr == null ? 'No radar coverage here'
+                setText('subsidence', h.subsidence_mm_yr == null ? 'Not measured here yet'
                     : `${h.subsidence_mm_yr > 0 ? '+' : ''}${fmt(h.subsidence_mm_yr, 1)} mm/yr ${h.subsidence_mm_yr < -3 ? '(sinking)' : '(stable)'}`);
-                setText('coherence', h.nisar_coherence == null ? '' : `NISAR radar ground stability: ${fmt(h.nisar_coherence, 2)} (1 = very stable)`);
+                setText('coherence', h.nisar_coherence == null ? (h.subsidence_mm_yr == null ? 'Sentinel-1 ground motion is processed for northeast NC so far; NISAR stability for about two-thirds of NC.' : '') : `NISAR radar ground stability: ${fmt(h.nisar_coherence, 2)} (1 = very stable)`);
                 setList('flags', (data.land.flags || []).map(f => FLAGS[f] || f));
 
                 // Sources
@@ -550,7 +550,12 @@
                     overlays[l.label] = group;
                 });
                 ov.overlays.forEach(o => {
-                    overlays[o.label] = L.imageOverlay(o.url, o.bounds, { opacity: 0.75, attribution: 'NASA-ISRO NISAR (ASF DAAC)' });
+                    const img = L.imageOverlay(o.url, o.bounds, { opacity: 0.75, attribution: 'NASA-ISRO NISAR (ASF DAAC)' });
+                    img.on('add', () => {
+                        map.fitBounds(o.bounds);
+                        toast('NISAR L-band radar: bright green = forest/structures, dark = water, pavement, bare fields. Covers southeastern NC.');
+                    });
+                    overlays[o.label] = img;
                 });
                 L.control.layers(bases, overlays, { collapsed: true, position: 'topright' }).addTo(map);
                 legend = L.control({ position: 'bottomright' });
