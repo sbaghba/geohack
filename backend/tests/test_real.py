@@ -47,6 +47,8 @@ def real_data(tmp_path, monkeypatch):
         "nri_tornado": 65.0, "svi_pct": rng.uniform(10, 90, n), "nri_rating": "Relatively Moderate",
         "dist_sub_km": rng.uniform(0.5, 20, n), "suitability": rng.uniform(20, 80, n), "burden": rng.uniform(20, 80, n),
         "hard_flag": False,
+        "pressure": rng.uniform(0, 100, n),
+        "pressure_drivers": json.dumps([{"key": "dist_sub_km", "label": "3 km to a 115 kV+ substation", "direction": "+"}]),
         "subsidence_mm_yr": rng.uniform(-6, 2, n), "nisar_coherence": rng.uniform(0.2, 0.9, n), "nisar_motion_12d_mm": rng.uniform(-5, 5, n),
     })
     g["pop_dens_km2"] = g["pop"] / 5.16
@@ -96,6 +98,7 @@ def test_tier1_report(real_data):
     assert r.field_sources["water.aqueduct_stress"] == "aqueduct"
     assert r.water.drought_category == "D1" and r.field_sources["water.drought_category"] == "usdm"
     assert r.hazards.subsidence_mm_yr is not None and 0 <= r.hazards.nisar_coherence <= 1
+    assert r.scores.pressure is not None and r.scores.pressure_drivers[0].key == "dist_sub_km"
     assert r.field_sources["hazards.subsidence_mm_yr"] == "opera" and r.field_sources["hazards.nisar_coherence"] == "nisar"
     keys = {s.key for s in r.sources}
     assert {"egrid", "aqueduct", "nri", "acs", "osm"} <= keys

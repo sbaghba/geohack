@@ -83,6 +83,17 @@ def overlays(request: Request):
     return layers_svc.list_overlays(str(request.base_url))
 
 
+@app.get("/api/model")
+def model_card():
+    """Siting Pressure model card: validation metrics (states held out) and feature importance."""
+    p = settings.data_dir / "models" / "pressure_metrics.json"
+    if not p.exists():
+        return {"available": False}
+    import json
+
+    return {"available": True, **json.loads(p.read_text())}
+
+
 @app.post("/api/chat")
 async def chat(req: ChatRequest):
     return StreamingResponse(chat_svc.stream_chat(req), media_type="text/event-stream",

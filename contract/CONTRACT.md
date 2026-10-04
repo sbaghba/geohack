@@ -41,6 +41,7 @@ The stub already reacts to inputs: changing `mw` or `cooling` changes energy, wa
 | `GET /api/layers/{name}` | — | GeoJSON FeatureCollection of hex polygons, `properties: { hex_id, value }` | < 2 s |
 | `POST /api/chat` | `ChatRequest` | `text/event-stream` (see Chat) | first token < 3 s |
 | `GET /api/overlays` | — | `{ overlays: [{name, label, url, bounds:[[s,w],[n,e]], date, source, legend}] }` → `L.imageOverlay(url, bounds)` | < 0.5 s |
+| `GET /api/model` | — | Siting Pressure model card: `{available, auc, average_precision, capture_at_10pct, capture_by_state[], importance_gain{}, ...}` | instant |
 | `GET /api/health` | — | `{ ok, llm_ok, model, grid_rows, contract_version }` | instant |
 
 Layer names: `suitability`, `burden`, `pressure`, `subsidence`, `water_stress`, `nisar_coherence`. Radar layers (`subsidence`, `nisar_coherence`) only contain hexes inside the satellite scenes (the Triangle demo area).

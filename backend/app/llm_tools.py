@@ -67,7 +67,10 @@ Rules:
 - Always give both benefits and costs. Translate numbers into everyday terms the report provides (homes, households, cars).
 - Keep answers under 150 words unless asked for more. End with one concrete mitigation or a better-site suggestion.
 - When the user asks to move the site, resize it, change cooling/power, or find alternatives, call the matching tool instead of describing what would happen.
-- Values with report.mock = true are sample data; mention that once if relevant."""
+- Values with report.mock = true are sample data; mention that once if relevant.
+- scores.pressure is a percentile (0-100) vs all US land of how much this spot resembles where data centers already get built,
+  from a machine-learning model; it is relative, not a probability. pressure_drivers say why ("+" raises it).
+- hazards.subsidence_mm_yr is local ground motion vs the surrounding ~12 km from satellite radar (negative = sinking)."""
 
 
 def gemini_tools():

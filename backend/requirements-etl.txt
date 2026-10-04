@@ -8,3 +8,5 @@ asf_search>=8
 h5py>=3.9
 pillow>=10
 pyproj>=3.6
+xgboost>=2.0
+scikit-learn>=1.3

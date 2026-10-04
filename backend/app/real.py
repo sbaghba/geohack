@@ -1,6 +1,7 @@
 """Builds real Reports and suggestions from the prebuilt grid + live lookups."""
 from __future__ import annotations
 
+import json
 import math
 from datetime import datetime, timezone
 
@@ -10,7 +11,7 @@ import pandas as pd
 
 from . import reference as R
 from .contract import (
-    AnalyzeRequest, Candidate, Carbon, Community, Delta, Economy, Energy, Hazards, Land, LandConverted, NriScores,
+    AnalyzeRequest, Candidate, Carbon, Community, Delta, Driver, Economy, Energy, Hazards, Land, LandConverted, NriScores,
     Poi, Report, Scores, Site, Source, SuggestRequest, SuggestResponse, Water,
 )
 from .errors import out_of_coverage
@@ -44,7 +45,7 @@ def _missing(obj, prefix="") -> list[str]:
     return out
 
 
-VINTAGE = {"usdm": "current week", "opera": "2021-2025", "nisar": "Jul-Oct 2026", "egrid": "2023", "eia": "2024", "ncdor": "2025-26", "acs": "2019-2023", "aqueduct": "4.0 (2023)",
+VINTAGE = {"pressure_model": "trained Oct 2026", "usdm": "current week", "opera": "2021-2025", "nisar": "Jul-Oct 2026", "egrid": "2023", "eia": "2024", "ncdor": "2025-26", "acs": "2019-2023", "aqueduct": "4.0 (2023)",
            "worldcover": "2021", "census_tiger": "2023", "osm": "Oct 2026"}
 
 
@@ -62,7 +63,8 @@ FIELD_SOURCES_NC = {
     "hazards.nri": "nri", "hazards.nri_rating": "nri", "hazards.subsidence_mm_yr": "opera",
     "hazards.nisar_coherence": "nisar", "hazards.nisar_motion_12d_mm": "nisar", "community": "acs", "community.svi_pct": "nri",
     "community.schools_1km": "osm", "community.hospitals_1km": "osm", "land": "model", "land.converted_acres": "worldcover",
-    "scores": "model", "site.county": "census_tiger",
+    "scores": "model", "scores.pressure": "pressure_model", "scores.pressure_drivers": "pressure_model",
+    "site.county": "census_tiger",
 }
 
 
@@ -70,6 +72,16 @@ def _field_sources(row) -> dict:
     if row.get("pop_src") == "nri":  # ACS fallback: population is Census 2020 via FEMA NRI
         return {**FIELD_SOURCES_NC, "community": "nri", "energy.county_households": "acs"}
     return FIELD_SOURCES_NC
+
+
+def _drivers(row) -> list[Driver]:
+    raw = row.get("pressure_drivers")
+    if not isinstance(raw, str):
+        return []
+    try:
+        return [Driver(**d) for d in json.loads(raw)][:3]
+    except Exception:
+        return []
 
 
 def _pois(kind: str, name: str, lat: float, lon: float, km: float) -> list[Poi]:
@@ -118,7 +130,7 @@ def report(req: AnalyzeRequest) -> Report:
         site=Site(lat=req.lat, lon=req.lon, hex_id=hex_id, label=f"{county} County, NC" if county else "North Carolina",
                   county=county, state="NC", tier=1),
         scores=Scores(suitability=round(s, 1), burden=round(b, 1), quadrant=row.get("quadrant") or "tradeoff",
-                      pressure=_f(row.get("pressure")), pressure_drivers=[]),
+                      pressure=_f(row.get("pressure")), pressure_drivers=_drivers(row)),
         energy=Energy(pue=m["pue"], annual_mwh=round(m["mwh"]), peak_grid_mw=round(m["peak_mw"], 1), homes_equiv=round(m["homes"]),
                       county_share_pct=None, county_households=hh,
                       county_homes_share_pct=round(100 * m["homes"] / hh, 1) if hh else None,

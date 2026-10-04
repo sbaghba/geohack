@@ -160,3 +160,21 @@ git add data/grid data/layers data/overlays && git commit -m "InSAR layers" && g
 - `nisar_motion_12d_mm`: not published. Single 12-day L-band pairs showed +-100s of mm of ionospheric/atmospheric delay.
 - `data/overlays/nisar_hv.png`: NISAR L-band HV backscatter, reprojected to lat/lon, served via `GET /api/overlays`.
 - If a step can't find a dataset, run `python scripts/process_insar.py inspect <file>` and check the printed HDF5 paths.
+
+
+## M3b: Siting Pressure model (A100)
+
+```bash
+pip install -r requirements-etl.txt
+python -u scripts/pressure_model.py all 2>&1 | tee pressure.log    # data (~20-40 min, Overpass-bound, cached) -> train (GPU, ~1 min) -> predict
+python -u scripts/build_grid.py --only score,layers
+git add data/grid data/layers data/models && git commit -m "Siting pressure model" && git push
+```
+
+- Labels: US H3 res-6 hexes containing an OSM-mapped data center. Features: distance to 115 kV+ substations and 230 kV+ lines,
+  population within 10/50 km, FEMA NRI hazards + social vulnerability, Aqueduct water stress, state power price + grid carbon.
+  Not used: distance to existing data centers, lat/lon.
+- Validation: GroupKFold by state (whole states held out). `pressure.log` prints AUC, average precision, and
+  "top-10% hexes capture X% of data-center hexes", plus per-state capture.
+- `scores.pressure` = percentile among all CONUS hexes; `scores.pressure_drivers` = top-3 TreeSHAP drivers with direction.
+- `GET /api/model` serves the metrics (model card) for the UI / pitch.

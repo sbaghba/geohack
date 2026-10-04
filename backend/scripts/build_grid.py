@@ -513,7 +513,7 @@ def step_layers():
     log("export map layers")
     g = pd.read_parquet(GRID / "nc_h3r7.parquet")
     for name, col in {"suitability": "suitability", "burden": "burden", "water_stress": "bws_score",
-                      "subsidence": "subsidence_mm_yr", "nisar_coherence": "nisar_coherence"}.items():
+                      "subsidence": "subsidence_mm_yr", "nisar_coherence": "nisar_coherence", "pressure": "pressure"}.items():
         if col not in g:
             continue
         feats = []

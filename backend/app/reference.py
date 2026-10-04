@@ -93,6 +93,7 @@ SOURCES = {
     "osm": ("OpenStreetMap contributors", "https://www.openstreetmap.org/copyright"),
     "census_tiger": ("US Census cartographic boundaries 2023", "https://www.census.gov/geographies/mapping-files/time-series/geo/cartographic-boundary.html"),
     "nisar": ("NASA-ISRO NISAR L2 (ASF DAAC)", "https://nisar-docs.asf.alaska.edu/"),
+    "pressure_model": ("SiteSense Siting Pressure model (GPU XGBoost on OSM data centers, states held out)", "https://github.com/sbaghba/geohack"),
     "usdm": ("U.S. Drought Monitor (current week, via FEMA GIS)", "https://droughtmonitor.unl.edu/"),
     "opera": ("OPERA DISP-S1 (ASF DAAC)", "https://www.earthdata.nasa.gov/data/catalog/asf-opera-l3-disp-s1-v1-1"),
 }
