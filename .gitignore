@@ -21,3 +21,8 @@ backend/data/raw/
 
 # build intermediates
 backend/data/interim/
+
+# local documents (planning notes, exports): keep out of the repo
+*.docx
+Claude outputs/
+*Judging Pitch*.pdf
