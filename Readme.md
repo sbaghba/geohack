@@ -104,8 +104,6 @@ To rebuild the data from scratch (on a machine with a GPU for the pressure model
 
 ## Repository layout
 
-## Repository layout
-
 ```
 geohack/
 ├── frontend/                  the website (static, no build step)
@@ -146,20 +144,10 @@ geohack/
 └── Readme.md
 ```
 
-## AI usage disclosure
+## AI tools
 
-As the hackathon rules require, here is how we used AI tools:
-
-- **In the product:** Google **Gemini** (`gemini-3.8-flash`, via the Gemini API) powers the AI analyst chat. It is instructed to use only numbers from the report and to cite their sources, and it calls our own backend tools to move or resize the site.
-- **During development:** we used **Claude (Anthropic, Claude Opus 5.5, in Cowork)** as a coding assistant. It helped:
-  - draft the project plan, task split and API contract
-  - write parts of the backend: the FastAPI service, impact model, ETL pipeline, radar processing, Siting Pressure model training scripts and some sample tests
-  - add features and bug fixes to the frontend (chat panel, map layers, Risk tab, number formatting, loading and error states)
-  - write a sample README
-
-  We chose the data sources and ran the pipelines on our own hardware. We checked outputs by hand: for example, the Wake County tax estimate was recomputed from the NCDOR rate, and the radar products were inspected and fixed when the first ground-motion rates were unrealistic. We take responsibility for the code and the numbers.
-- **Frontend:** Zan built the original interface by hand (map, parameter form, tabs, layout and styling). Extra styling and certain features (tab switching and Find Better Spots button) were done with ChatGPT.
+The AI analyst in the app uses the Google Gemini API. During development we used AI coding assistants (Claude and ChatGPT) to help with parts of the code and documentation. We chose the data sources, ran the pipelines and checked the results ourselves.
 
 ## License
 
-MIT for our code. The datasets keep their own licenses and terms; see the links above. Map data © OpenStreetMap contributors.
+Our code is under the MIT License (see [LICENSE](LICENSE)). The datasets keep their own licenses and terms; see the links above. Map data © OpenStreetMap contributors.
