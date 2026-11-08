@@ -2,7 +2,7 @@
 
 **Drop a data center anywhere in North Carolina and see what it would do to the place: the power, water, carbon, jobs, taxes, neighbors, hazards and protected land, all from public data. Then ask an AI analyst about it.**
 
-Live site: **[https://doesyourdatacenter.fit](https://sbaghba.github.io/geohack/frontend/)** · API: https://sitesense-api.onrender.com/docs
+Live site: **[https://sbaghba.github.io/geohack/frontend/](https://sbaghba.github.io/geohack/frontend/)** · API: https://sitesense-api.onrender.com/docs
 WolfHacks 2026 · Center for Geospatial Analytics track · Team: Sina Baghbanijam (backend, data, model) and Zan Jamieson (frontend)
 
 > The free API server sleeps when idle. The first request can take 30-60 s while it wakes up (the page tells you).
